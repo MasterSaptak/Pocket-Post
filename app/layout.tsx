@@ -4,6 +4,7 @@ import './globals.css';
 import { AppProviders } from '@/components/providers';
 import Script from 'next/script';
 import Image from 'next/image';
+import { InstallPWA } from '@/components/InstallPWA';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="relative z-0 min-h-[100dvh]">
             {children}
           </main>
+          <InstallPWA />
         </AppProviders>
         
         <Script id="register-sw" strategy="afterInteractive">
