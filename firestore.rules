@@ -1,0 +1,118 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+        (request.auth.token.email == "BUrningSOUlofDarkness@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() > 0 &&
+             data.displayName is string &&
+             data.email is string &&
+             data.role in ['requester', 'carrier', 'admin'] &&
+             data.status in ['pending', 'verified', 'rejected'] &&
+             (!('carrierId' in data) || data.carrierId is string) &&
+             (!('rating' in data) || data.rating is number) &&
+             (!('completedDeliveries' in data) || data.completedDeliveries is number) &&
+             (!('photoURL' in data) || data.photoURL is string);
+    }
+
+    function isValidRequest(data) {
+      return data.requesterId is string && data.requesterId.size() > 0 &&
+             data.itemCategory is string && data.itemCategory.size() > 0 && data.itemCategory.size() < 100 &&
+             data.pickupLocation is string && data.pickupLocation.size() > 0 && data.pickupLocation.size() < 100 &&
+             data.dropLocation is string && data.dropLocation.size() > 0 && data.dropLocation.size() < 100 &&
+             data.deadline is timestamp &&
+             data.reward is number && data.reward >= 0 &&
+             data.status in ['requested', 'approved', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'] &&
+             data.createdAt is timestamp &&
+             (!('assignedCarrierId' in data) || data.assignedCarrierId is string);
+    }
+
+    function isValidApplication(data) {
+      return data.requestId is string && data.requestId.size() > 0 &&
+             data.carrierId is string && data.carrierId.size() > 0 &&
+             data.status in ['pending', 'accepted', 'rejected'] &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    
+    match /users/{userId} {
+      // Users can read their own profile; admins can read all
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Users can create their own profile (non-admin role unless bootstrapped)
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) &&
+                    ((request.resource.data.role != 'admin') || isAdmin());
+                    
+      // Users can update their own non-sensitive fields; admins can update anything
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (
+                      (isOwner(userId) && areImmutableFieldsUnchanged(['uid', 'role', 'status', 'carrierId', 'rating', 'completedDeliveries', 'createdAt'])) ||
+                      isAdmin()
+                    );
+    }
+
+    match /requests/{requestId} {
+      // Anyone authenticated can read requests (feed)
+      allow read: if isAuthenticated();
+      
+      // Requesters can create requests
+      allow create: if isAuthenticated() && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'requester' &&
+                    isValidRequest(request.resource.data) &&
+                    request.resource.data.requesterId == request.auth.uid &&
+                    request.resource.data.status == 'requested';
+                    
+      // Requesters can update their own requests; Admins can update any
+      allow update: if isAuthenticated() && isValidRequest(request.resource.data) && (
+                      (request.resource.data.requesterId == request.auth.uid && areImmutableFieldsUnchanged(['requesterId', 'createdAt'])) ||
+                      isAdmin()
+                    );
+    }
+
+    match /applications/{applicationId} {
+      // Carriers can read their own; requesters can read apps for their requests; admins read all
+      allow read: if isAuthenticated() && (
+                    resource.data.carrierId == request.auth.uid ||
+                    get(/databases/$(database)/documents/requests/$(resource.data.requestId)).data.requesterId == request.auth.uid ||
+                    isAdmin()
+                  );
+                  
+      // Carriers can create applications
+      allow create: if isAuthenticated() && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'carrier' &&
+                    isValidApplication(request.resource.data) &&
+                    request.resource.data.carrierId == request.auth.uid &&
+                    request.resource.data.status == 'pending';
+                    
+      // Admins can update applications (accept/reject)
+      allow update: if isAuthenticated() && isValidApplication(request.resource.data) && isAdmin();
+    }
+  }
+}
