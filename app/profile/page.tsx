@@ -171,7 +171,7 @@ export default function ProfilePage() {
   const isVerified = profile?.isVerifiedCarrier === true;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 pt-24 pb-24 lg:pt-32 lg:pb-12">
       {/* Profile Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

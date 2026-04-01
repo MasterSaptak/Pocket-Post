@@ -117,57 +117,63 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative overflow-hidden bg-slate-50">
+    <div className="relative overflow-hidden bg-transparent">
 
       {/* ═══════════════════════════════════════════════════════
           SECTION 1: HERO
           ═══════════════════════════════════════════════════════ */}
-      <section className="relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="/BACKGROUND.png"
-            alt=""
-            fill
-            className="object-cover opacity-70"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/40 to-slate-50/95" />
+      <section className="relative min-h-[100dvh] lg:min-h-[100vh] flex flex-col items-center justify-center pt-24 pb-12 lg:pt-24 lg:pb-16">
+        {/* (Background image is now injected universally via RootLayout) */}
+
+        {/* Large Decorative Watermark Logo (Desktop only) */}
+        <div className="hidden lg:block absolute -right-20 top-20 opacity-[0.03] pointer-events-none">
+          <Image src="/LOGO.png" alt="" width={600} height={600} priority />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+        <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 w-full flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
 
           {/* Left: Copy & CTA */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="flex-1 text-center lg:text-left pt-12 lg:pt-0"
+            className="flex-1 text-center lg:text-left w-full"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50/80 text-blue-600 text-sm font-medium mb-6 border border-blue-100/80 backdrop-blur-sm">
-              <Shield className="w-4 h-4" />
+            <div className="relative w-48 sm:w-56 lg:w-72 mx-auto lg:mx-0 mb-6 bg-white rounded-[2rem] p-4 sm:p-6 shadow-2xl shadow-blue-900/10 border border-white flex items-center justify-center animate-float">
+               <Image
+                 src="/LOGO.png"
+                 alt="PocketPost Logo"
+                 width={300}
+                 height={300}
+                 className="w-full h-auto object-contain"
+                 priority
+               />
+            </div>
+            
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50/80 text-blue-600 text-[11px] sm:text-xs font-bold mb-4 sm:mb-6 border border-blue-100/80 backdrop-blur-md shadow-sm">
+              <Shield className="w-3.5 h-3.5" />
               Tasks Powered by Real People
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold font-heading tracking-tight text-slate-900 mb-6 leading-[1.1]">
+            <h1 className="text-4xl leading-[1.1] sm:text-5xl lg:text-[4rem] xl:text-[4.5rem] font-black font-heading tracking-tight text-slate-900 mb-4 w-full">
               Get Things Done With{' '}
-              <br className="hidden lg:block" />
-              <span className="text-gradient-signature">Trusted Carriers.</span>
+              <br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 block sm:inline">Trusted Carriers.</span>
             </h1>
 
-            <p className="text-lg lg:text-xl text-slate-600 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+            <p className="text-sm sm:text-base lg:text-lg text-slate-600 mb-8 max-w-md sm:max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
               Post tasks, discover opportunities, and connect with verified carriers.
               PocketPost makes getting things done faster, simpler, and fully transparent.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-              <Button asChild size="lg" variant="signature" className="w-full sm:w-auto group">
+              <Button asChild size="lg" className="w-full sm:w-auto group h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl shadow-blue-500/20 text-base font-bold">
                 <Link href="/post">
                   Post a Task
-                  <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto h-14 rounded-2xl border-slate-200 text-slate-700 hover:bg-slate-50 text-base font-bold shadow-sm">
                 <Link href="/feed">
                   Browse Tasks
                 </Link>
@@ -175,17 +181,17 @@ export default function Home() {
             </div>
 
             {/* Micro trust line */}
-            <div className="flex items-center justify-center lg:justify-start gap-6 mt-8 text-xs text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-3 mt-10 sm:mt-8 text-[11px] sm:text-xs text-slate-500 font-semibold uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 bg-white/50 px-3 py-1.5 rounded-lg border border-slate-100">
+                <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                 <span>Admin Verified</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Lock className="w-4 h-4 text-blue-500" />
+              <div className="flex items-center gap-1.5 bg-white/50 px-3 py-1.5 rounded-lg border border-slate-100">
+                <Lock className="w-4 h-4 text-blue-500 flex-shrink-0" />
                 <span>Privacy Protected</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-amber-500" />
+              <div className="flex items-center gap-1.5 bg-white/50 px-3 py-1.5 rounded-lg border border-slate-100 hidden sm:flex">
+                <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <span>Same-Day Possible</span>
               </div>
             </div>
@@ -196,24 +202,27 @@ export default function Home() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex-1 w-full max-w-md relative"
+            className="flex-1 w-full max-w-sm sm:max-w-md relative mt-4 lg:mt-0 pb-16 lg:pb-0"
           >
-            <div className="glass-panel p-8 rounded-3xl shadow-xl relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-white/20" />
-              <div className="relative z-10">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-6">Live Delivery Flow</p>
-                <div className="flex flex-col gap-6">
+            <div className="bg-white/70 backdrop-blur-2xl p-6 sm:p-8 rounded-[32px] shadow-2xl shadow-blue-900/10 border border-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-slate-50/20 pointer-events-none" />
+              <div className="relative z-10 w-full pl-2 sm:pl-0">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">Live Delivery Flow</p>
+                </div>
+                <div className="flex flex-col gap-5 sm:gap-6">
                   {steps.map((step, index) => {
                     const isActive = index === currentStep;
                     const isPast = index < currentStep;
                     const Icon = step.icon;
 
                     return (
-                      <div key={step.id} className="flex items-center gap-4 relative">
+                      <div key={step.id} className="flex items-center gap-4 sm:gap-5 relative">
                         {index !== steps.length - 1 && (
-                          <div className="absolute left-[1.125rem] top-10 bottom-[-1.5rem] w-0.5 bg-slate-100">
+                          <div className="absolute left-[1.375rem] top-11 bottom-[-1.5rem] w-0.5 sm:w-1 sm:left-[1.375rem] bg-slate-100 rounded-full">
                             <motion.div
-                              className="w-full bg-blue-500 origin-top"
+                              className="w-full bg-blue-500 origin-top rounded-full"
                               initial={{ scaleY: 0 }}
                               animate={{ scaleY: isPast ? 1 : 0 }}
                               transition={{ duration: 0.5 }}
@@ -222,23 +231,23 @@ export default function Home() {
                         )}
 
                         <motion.div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center z-10 transition-colors duration-500 ${
-                            isActive || isPast ? step.bg : 'bg-slate-100'
+                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center z-10 transition-colors duration-500 flex-shrink-0 shadow-sm ${
+                            isActive || isPast ? step.bg : 'bg-slate-100 border border-slate-200'
                           }`}
                           animate={isActive ? { scale: [1, 1.1, 1] } : { scale: 1 }}
                           transition={{ repeat: isActive ? Infinity : 0, duration: 2 }}
                         >
-                          <Icon className={`w-5 h-5 ${isActive || isPast ? step.color : 'text-slate-400'}`} />
+                          <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${isActive || isPast ? step.color : 'text-slate-400'}`} />
                         </motion.div>
 
-                        <div className={`flex-1 transition-opacity duration-500 ${isActive || isPast ? 'opacity-100' : 'opacity-40'}`}>
-                          <div className="glass-panel px-4 py-3 rounded-xl flex items-center justify-between">
-                            <span className="font-medium text-slate-900">{step.label}</span>
+                        <div className={`flex-1 transition-all duration-500 w-full ${isActive || isPast ? 'opacity-100 translate-x-0' : 'opacity-40 -translate-x-2'}`}>
+                          <div className={`py-3 sm:py-4 px-4 sm:px-5 rounded-2xl flex items-center justify-between border ${isActive || isPast ? 'bg-white shadow-sm border-slate-100' : 'bg-transparent border-transparent'}`}>
+                            <span className={`font-bold text-sm sm:text-base ${isActive ? 'text-blue-900' : 'text-slate-700'}`}>{step.label}</span>
                             {isActive && (
                               <motion.div
                                 layoutId="active-badge"
-                                className="w-2 h-2 rounded-full bg-blue-500"
-                                animate={{ opacity: [1, 0.5, 1] }}
+                                className="w-2.5 h-2.5 rounded-full bg-blue-500 absolute right-3"
+                                animate={{ opacity: [1, 0.5, 1], scale: [1, 1.2, 1] }}
                                 transition={{ repeat: Infinity, duration: 1.5 }}
                               />
                             )}
@@ -268,7 +277,7 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 2: WHAT IS POCKETPOST?
           ═══════════════════════════════════════════════════════ */}
-      <section id="what-is" className="py-24 lg:py-32 bg-white relative">
+      <section id="what-is" className="py-24 lg:py-32 bg-transparent relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-16">
             {/* Left: Visual */}
@@ -330,7 +339,7 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 3: HOW IT WORKS
           ═══════════════════════════════════════════════════════ */}
-      <section id="how-it-works" className="py-24 lg:py-32 bg-slate-50 relative">
+      <section id="how-it-works" className="py-24 lg:py-32 bg-transparent relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold uppercase tracking-wider mb-4">
@@ -384,7 +393,7 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 4: WHY POCKETPOST?
           ═══════════════════════════════════════════════════════ */}
-      <section id="why" className="py-24 lg:py-32 bg-white relative">
+      <section id="why" className="py-24 lg:py-32 bg-transparent relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-semibold uppercase tracking-wider mb-4">
@@ -422,7 +431,7 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 5: TRUST & SAFETY
           ═══════════════════════════════════════════════════════ */}
-      <section id="trust" className="py-24 lg:py-32 relative overflow-hidden">
+      <section id="trust" className="py-24 lg:py-32 bg-transparent relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-slate-900" />
         <div className="absolute inset-0 opacity-10">
@@ -490,7 +499,7 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 6: FINAL CTA
           ═══════════════════════════════════════════════════════ */}
-      <section className="py-24 lg:py-32 bg-slate-50 relative overflow-hidden">
+      <section className="py-24 lg:py-32 bg-transparent relative overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-400/15 blur-[120px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-[600px] h-[400px] bg-emerald-400/10 blur-[100px] rounded-full pointer-events-none" />
 

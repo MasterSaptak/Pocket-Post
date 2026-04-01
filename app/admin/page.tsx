@@ -291,7 +291,7 @@ export default function AdminDashboard() {
   const filteredTasks = getSubTabTasks();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 pt-24 pb-24 lg:pt-32 lg:pb-12">
       {/* 🟢 HEADER & GLOBAL ACTIONS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>

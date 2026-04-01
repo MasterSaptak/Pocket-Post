@@ -78,7 +78,7 @@ export default function PostTaskPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto px-4 py-8"
+      className="max-w-2xl mx-auto px-4 pt-24 pb-24 lg:pt-32 lg:pb-12"
     >
       <div className="mb-8">
         <h1 className="text-3xl font-heading font-bold text-slate-900">Create a Task</h1>

@@ -1,11 +1,11 @@
 {
   "name": "PocketPost",
   "short_name": "PocketPost",
-  "description": "Private Cross-Border Delivery",
+  "description": "Get Things Done With Trusted Carriers.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#0F172A",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
   "icons": [
     {
       "src": "/icon-192x192.png",
