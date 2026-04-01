@@ -95,10 +95,19 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       }
 
       const snapshot = await getDocs(q);
-      const tasks = snapshot.docs.map((doc) => ({
+      let tasks = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as TaskData[];
+
+      // Final sort: Emergency > Pinned > Chronological (Chronological already handled by orderBy)
+      tasks.sort((a, b) => {
+        if (a.isEmergency && !b.isEmergency) return -1;
+        if (!a.isEmergency && b.isEmergency) return 1;
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return 0;
+      });
 
       if (snapshot.docs.length > 0) {
         lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
@@ -138,7 +147,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   // ── Admin: on-demand subscription ─────────────────────────────
   const subscribeToAdminData = useCallback(() => {
     if (isAdminSubscribed) return;
-    if (profile?.role !== 'admin' && profile?.role !== 'manager') return;
+    if (profile?.role !== 'admin' && profile?.role !== 'moderator') return;
 
     setIsAdminSubscribed(true);
 

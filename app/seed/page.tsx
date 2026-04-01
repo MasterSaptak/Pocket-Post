@@ -69,7 +69,7 @@ export default function SeedPage() {
           deadline: deadline,
           createdBy: user.uid,
           createdByName: profile?.displayName || user.displayName || 'Demo User',
-          status: 'open',
+          status: 'pending',
           assignedTo: null,
           reactionCount: 0, // Must be exactly 0 to pass Firestore rules!
           createdAt: serverTimestamp(),

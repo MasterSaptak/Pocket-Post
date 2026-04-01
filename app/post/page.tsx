@@ -48,7 +48,7 @@ export default function PostTaskPage() {
         deadline: formData.deadline ? new Date(formData.deadline) : null,
         createdBy: user.uid,
         createdByName: profile?.displayName || user.displayName || 'Anonymous',
-        status: 'open',
+        status: 'pending',
         assignedTo: null,
         reactionCount: 0,
         createdAt: serverTimestamp(),

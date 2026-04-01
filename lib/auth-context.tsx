@@ -17,7 +17,7 @@ import { auth, db } from './firebase';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────
-export type UserRole = 'user' | 'manager' | 'admin';
+export type UserRole = 'user' | 'moderator' | 'admin';
 
 export interface UserProfile {
   uid: string;
@@ -34,6 +34,9 @@ export interface UserProfile {
   };
   createdAt: any;
   lastLoginAt: any;
+  bannedUntil?: any;
+  banReason?: string;
+  isPermanentlyBanned?: boolean;
 }
 
 interface AuthContextType {
