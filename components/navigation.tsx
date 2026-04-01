@@ -25,11 +25,11 @@ export const Navigation = memo(function Navigation() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Hide navigation on auth pages
-  if (pathname.startsWith('/auth/')) return null;
-
   // Determine if we're on the home page (transparent nav at top)
   const isHomePage = pathname === '/';
+
+  // Navbar style: transparent on home page top, frosted glass when scrolled or on other pages
+  const showFrosted = scrolled || !isHomePage;
 
   // Memoize nav items to prevent array recreation
   const navItems = useMemo(() => {
@@ -75,8 +75,8 @@ export const Navigation = memo(function Navigation() {
     }
   }, [router]);
 
-  // Navbar style: transparent on home page top, frosted glass when scrolled or on other pages
-  const showFrosted = scrolled || !isHomePage;
+  // Hide navigation on auth pages - must be AFTER hooks
+  if (pathname.startsWith('/auth/')) return null;
 
   return (
     <>
