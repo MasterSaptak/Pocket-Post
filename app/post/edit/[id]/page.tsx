@@ -47,8 +47,7 @@ export default function EditTaskPage() {
             router.push('/feed');
             return;
           }
-
-          setTask({ id: docSnap.id, ...data });
+          setTask({ ...data, id: docSnap.id } as any);
           setTitle(data.title);
           setDescription(data.description);
           setLocation(data.location || '');

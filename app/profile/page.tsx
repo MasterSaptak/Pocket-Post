@@ -328,13 +328,13 @@ export default function ProfilePage() {
         )}
 
         {/* Admin Controls Link */}
-        {(profile?.role === 'admin' || profile?.role === 'manager') && (
+        {profile?.role === 'admin' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-emerald-500" />
-                  {profile.role === 'admin' ? 'Admin Controls' : 'Manager Controls'}
+                  Admin Controls
                 </CardTitle>
                 <CardDescription>Manage tasks, applications, and users.</CardDescription>
               </CardHeader>
