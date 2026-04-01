@@ -16,9 +16,32 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'PocketPost | Private Cross-Border Delivery',
-  description: 'Send essential items through verified travelers without exposing identity.',
+  metadataBase: new URL('https://pocketpost.saptech.online'),
+  title: 'PocketPost | For What\'s Needed.',
+  description: 'Post tasks, discover opportunities, and connect with verified carriers rapidly.',
   manifest: '/manifest.json',
+  openGraph: {
+    title: 'PocketPost | For What\'s Needed.',
+    description: 'Post tasks, discover opportunities, and connect with verified carriers rapidly.',
+    url: 'https://pocketpost.saptech.online',
+    siteName: 'PocketPost',
+    images: [
+      {
+        url: '/LOGO.png',
+        width: 800,
+        height: 800,
+        alt: 'PocketPost Thumbnail',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PocketPost | For What\'s Needed.',
+    description: 'Post tasks, discover opportunities, and connect with verified carriers rapidly.',
+    images: ['/LOGO.png'],
+  },
 };
 
 export const viewport: Viewport = {
