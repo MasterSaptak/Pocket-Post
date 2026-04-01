@@ -31,7 +31,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${plusJakartaSans.variable}`} suppressHydrationWarning>
-      <body className="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-500/30 pb-20 md:pb-0 md:pt-16">
+      <body suppressHydrationWarning className="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-blue-500/30 pb-20 md:pb-0 md:pt-16">
         <AppProviders>
           <main className="min-h-screen">
             {children}

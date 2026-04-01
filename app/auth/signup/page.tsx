@@ -1,21 +1,33 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { motion } from 'motion/react';
-import { Loader2, Package, Shield, Truck } from 'lucide-react';
+import { Loader2, Package, Shield, Truck, Mail, Lock, User } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SignUpPage() {
-  const { user, loading, signInWithGoogle, authError, clearError } = useAuth();
+  const { user, loading, signInWithGoogle, signUpWithEmail, authError, clearError } = useAuth();
   const router = useRouter();
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Redirect to home if already logged in
   useEffect(() => {
     if (!loading && user) {
       router.replace('/');
     }
   }, [user, loading, router]);
+
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || !displayName.trim()) return;
+    setSubmitting(true);
+    await signUpWithEmail(email, password, displayName.trim());
+    setSubmitting(false);
+  };
 
   if (loading) {
     return (
@@ -65,14 +77,14 @@ export default function SignUpPage() {
               Create Your Account
             </h1>
             <p className="text-slate-500 text-sm leading-relaxed">
-              Join thousands of verified users sending items safely across borders.
+              Join PocketPost to post tasks, apply to work, and earn.
             </p>
           </div>
 
           {/* Features */}
-          <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="grid grid-cols-3 gap-3 mb-6">
             {[
-              { icon: Package, label: 'Post Requests', color: 'text-amber-500', bg: 'bg-amber-50' },
+              { icon: Package, label: 'Post Tasks', color: 'text-amber-500', bg: 'bg-amber-50' },
               { icon: Shield, label: 'Verified Trust', color: 'text-blue-500', bg: 'bg-blue-50' },
               { icon: Truck, label: 'Earn Money', color: 'text-emerald-500', bg: 'bg-emerald-50' },
             ].map((item) => (
@@ -104,7 +116,59 @@ export default function SignUpPage() {
             </motion.div>
           )}
 
-          {/* Google Sign Up Button */}
+          {/* Email/Password Sign Up Form */}
+          <form onSubmit={handleEmailSignUp} className="space-y-4 mb-6">
+            <div className="relative">
+              <User className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Full name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+              />
+            </div>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+              />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+              <input
+                type="password"
+                placeholder="Password (min 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3 rounded-xl bg-gradient-signature text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+            >
+              {submitting ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Or</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          {/* Google Sign Up */}
           <button
             onClick={signInWithGoogle}
             className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-[15px] transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]"
@@ -121,9 +185,9 @@ export default function SignUpPage() {
           {/* Sign-in link */}
           <p className="text-center text-sm text-slate-500 mt-6">
             Already have an account?{' '}
-            <a href="/auth/signin" className="text-blue-600 font-medium hover:text-blue-700 transition-colors">
+            <Link href="/auth/signin" className="text-blue-600 font-medium hover:text-blue-700 transition-colors">
               Sign in
-            </a>
+            </Link>
           </p>
         </div>
 

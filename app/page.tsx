@@ -46,22 +46,22 @@ const steps = [
 const howItWorks = [
   {
     step: '01',
-    title: 'Post a Request',
-    description: 'Tell us what you need delivered, from where, and to where. Set your budget and deadline.',
+    title: 'Post a Task',
+    description: 'Describe what you need done — a delivery, pickup, or any task. Set your location and deadline.',
     icon: FileText,
     color: 'from-blue-500 to-blue-600',
   },
   {
     step: '02',
-    title: 'Get Matched',
-    description: 'Our admin team reviews your request and connects you with a verified traveler heading your way.',
+    title: 'Get Applications',
+    description: 'Verified carriers browse your task in the feed and apply. Review applicants and choose the best fit.',
     icon: UserCheck,
     color: 'from-indigo-500 to-indigo-600',
   },
   {
     step: '03',
-    title: 'Delivered Securely',
-    description: 'Your item is delivered through a trusted, admin-controlled process with full tracking at every stage.',
+    title: 'Task Completed',
+    description: 'Your chosen carrier completes the task. Track progress from assigned to completed — simple and secure.',
     icon: ShieldCheck,
     color: 'from-emerald-500 to-emerald-600',
   },
@@ -146,30 +146,30 @@ export default function Home() {
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50/80 text-blue-600 text-sm font-medium mb-6 border border-blue-100/80 backdrop-blur-sm">
               <Shield className="w-4 h-4" />
-              Delivery Powered by Real People
+              Tasks Powered by Real People
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold font-heading tracking-tight text-slate-900 mb-6 leading-[1.1]">
-              Send Items Through{' '}
+              Get Things Done With{' '}
               <br className="hidden lg:block" />
-              <span className="text-gradient-signature">Trusted Travelers.</span>
+              <span className="text-gradient-signature">Trusted Carriers.</span>
             </h1>
 
             <p className="text-lg lg:text-xl text-slate-600 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Skip shipping delays and sky-high costs. PocketPost connects you with verified travelers
-              already heading your way — faster, cheaper, and completely private.
+              Post tasks, discover opportunities, and connect with verified carriers.
+              PocketPost makes getting things done faster, simpler, and fully transparent.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
               <Button asChild size="lg" variant="signature" className="w-full sm:w-auto group">
                 <Link href="/post">
-                  Post a Delivery Request
+                  Post a Task
                   <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
                 <Link href="/feed">
-                  Become a Carrier
+                  Browse Tasks
                 </Link>
               </Button>
             </div>
@@ -341,7 +341,7 @@ export default function Home() {
               How It Works
             </h2>
             <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              Three simple steps from posting your request to receiving your item securely.
+              Three simple steps from posting your task to getting it done.
             </p>
           </AnimatedSection>
 
@@ -496,21 +496,21 @@ export default function Home() {
 
         <AnimatedSection className="relative z-10 max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-3xl lg:text-5xl font-heading font-bold text-slate-900 mb-6">
-            Start Sending Smarter
+            Start Getting Things Done
           </h2>
           <p className="text-lg text-slate-500 mb-10 max-w-xl mx-auto leading-relaxed">
-            Join the future of cross-border delivery. No warehouses, no delays — just trusted travelers and verified routes.
+            Join the platform where tasks get done. Post, discover, apply — all powered by a trusted community of verified carriers.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button asChild size="lg" variant="signature" className="w-full sm:w-auto group">
               <Link href="/post">
-                Post a Delivery Request
+                Post a Task
                 <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
               <Link href="/feed">
-                Become a Carrier
+                Browse Tasks
               </Link>
             </Button>
           </div>

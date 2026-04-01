@@ -1,22 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { motion } from 'motion/react';
-import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2, Mail, Lock } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SignInPage() {
-  const { user, loading, signInWithGoogle, authError, clearError } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithEmail, authError, clearError } = useAuth();
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Redirect to home if already logged in
   useEffect(() => {
     if (!loading && user) {
       router.replace('/');
     }
   }, [user, loading, router]);
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    setSubmitting(true);
+    await signInWithEmail(email, password);
+    setSubmitting(false);
+  };
 
   if (loading) {
     return (
@@ -33,7 +43,7 @@ export default function SignInPage() {
     );
   }
 
-  if (user) return null; // Will redirect
+  if (user) return null;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
@@ -66,7 +76,7 @@ export default function SignInPage() {
               Welcome Back
             </h1>
             <p className="text-slate-500 text-sm leading-relaxed">
-              Sign in to manage your deliveries, track packages, and connect with verified carriers.
+              Sign in to manage your tasks, track applications, and connect with carriers.
             </p>
           </div>
 
@@ -92,6 +102,47 @@ export default function SignInPage() {
             </motion.div>
           )}
 
+          {/* Email/Password Form */}
+          <form onSubmit={handleEmailSignIn} className="space-y-4 mb-6">
+            <div className="relative">
+              <Mail className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+              />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-3 rounded-xl bg-gradient-signature text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+            >
+              {submitting ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Or</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
           {/* Google Sign-in Button */}
           <button
             onClick={signInWithGoogle}
@@ -106,34 +157,13 @@ export default function SignInPage() {
             Continue with Google
           </button>
 
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Secure Sign-in</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
-
-          {/* Trust Badges */}
-          <div className="flex items-center justify-center gap-6 text-xs text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              <span>Encrypted</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <span>Privacy-First</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>Instant</span>
-            </div>
-          </div>
+          {/* Sign-up link */}
+          <p className="text-center text-sm text-slate-500 mt-6">
+            Don&apos;t have an account?{' '}
+            <Link href="/auth/signup" className="text-blue-600 font-medium hover:text-blue-700 transition-colors">
+              Sign up
+            </Link>
+          </p>
         </div>
 
         {/* Footer */}

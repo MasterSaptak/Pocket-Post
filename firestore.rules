@@ -21,40 +21,44 @@ service cloud.firestore {
       );
     }
 
-    function areImmutableFieldsUnchanged(fields) {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    function isManagerOrAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager']
+      );
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isVerifiedCarrier() {
+      return isAuthenticated() && getUserData().isVerifiedCarrier == true;
     }
 
     // ===============================================================
-    // Domain Validators
+    // Validation Functions
     // ===============================================================
     function isValidUser(data) {
       return data.uid is string && data.uid.size() > 0 &&
              data.displayName is string &&
              data.email is string &&
-             data.role in ['requester', 'carrier', 'admin'] &&
-             data.status in ['pending', 'verified', 'rejected'] &&
-             (!('carrierId' in data) || data.carrierId is string) &&
-             (!('rating' in data) || data.rating is number) &&
-             (!('completedDeliveries' in data) || data.completedDeliveries is number) &&
+             data.role in ['user', 'manager', 'admin'] &&
+             data.isVerifiedCarrier is bool &&
              (!('photoURL' in data) || data.photoURL is string);
     }
 
-    function isValidRequest(data) {
-      return data.requesterId is string && data.requesterId.size() > 0 &&
-             data.itemCategory is string && data.itemCategory.size() > 0 && data.itemCategory.size() < 100 &&
-             data.pickupLocation is string && data.pickupLocation.size() > 0 && data.pickupLocation.size() < 100 &&
-             data.dropLocation is string && data.dropLocation.size() > 0 && data.dropLocation.size() < 100 &&
-             data.deadline is timestamp &&
-             data.reward is number && data.reward >= 0 &&
-             data.status in ['requested', 'approved', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'] &&
-             data.createdAt is timestamp &&
-             (!('assignedCarrierId' in data) || data.assignedCarrierId is string);
+    function isValidTask(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.description is string && data.description.size() > 0 &&
+             data.createdBy is string && data.createdBy.size() > 0 &&
+             data.status in ['open', 'assigned', 'completed', 'cancelled'] &&
+             data.reactionCount is number && data.reactionCount >= 0 &&
+             data.createdAt is timestamp;
     }
 
     function isValidApplication(data) {
-      return data.requestId is string && data.requestId.size() > 0 &&
-             data.carrierId is string && data.carrierId.size() > 0 &&
+      return data.taskId is string && data.taskId.size() > 0 &&
+             data.userId is string && data.userId.size() > 0 &&
              data.status in ['pending', 'accepted', 'rejected'] &&
              data.createdAt is timestamp;
     }
@@ -63,8 +67,9 @@ service cloud.firestore {
     // Rules
     // ===============================================================
     
+    // ─── Users ─────────────────────────────────────────────────
     match /users/{userId} {
-      // Users can read their own profile; admins can read all
+      // Any authenticated user can read their own profile; admins read all
       allow read: if isOwner(userId) || isAdmin();
       
       // Users can create their own profile (non-admin role unless bootstrapped)
@@ -72,47 +77,68 @@ service cloud.firestore {
                     ((request.resource.data.role != 'admin') || isAdmin());
                     
       // Users can update their own non-sensitive fields; admins can update anything
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (
-                      (isOwner(userId) && areImmutableFieldsUnchanged(['uid', 'role', 'status', 'carrierId', 'rating', 'completedDeliveries', 'createdAt'])) ||
+      allow update: if isAuthenticated() && (
+                      // Self-update: cannot change role, isVerifiedCarrier, or uid
+                      (isOwner(userId) && 
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'role', 'isVerifiedCarrier', 'createdAt'])) ||
                       isAdmin()
                     );
     }
 
-    match /requests/{requestId} {
-      // Anyone authenticated can read requests (feed)
+    // ─── Tasks ─────────────────────────────────────────────────
+    match /tasks/{taskId} {
+      // Anyone authenticated can read tasks (feed)
       allow read: if isAuthenticated();
       
-      // Requesters can create requests
+      // Any authenticated user can create a task
       allow create: if isAuthenticated() && 
-                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'requester' &&
-                    isValidRequest(request.resource.data) &&
-                    request.resource.data.requesterId == request.auth.uid &&
-                    request.resource.data.status == 'requested';
+                    isValidTask(request.resource.data) &&
+                    request.resource.data.createdBy == request.auth.uid &&
+                    request.resource.data.status == 'open' &&
+                    request.resource.data.reactionCount == 0;
                     
-      // Requesters can update their own requests; Admins can update any
-      allow update: if isAuthenticated() && isValidRequest(request.resource.data) && (
-                      (request.resource.data.requesterId == request.auth.uid && areImmutableFieldsUnchanged(['requesterId', 'createdAt'])) ||
-                      isAdmin()
+      // Task owner, managers, and admins can update tasks
+      // Anyone can increment reactionCount
+      allow update: if isAuthenticated() && (
+                      // Reaction increment only (anyone can like)
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCount']) &&
+                       request.resource.data.reactionCount == resource.data.reactionCount + 1) ||
+                      // Owner can update their own task
+                      (resource.data.createdBy == request.auth.uid) ||
+                      // Manager or admin can update any task
+                      isManagerOrAdmin()
                     );
     }
 
+    // ─── Applications ──────────────────────────────────────────
     match /applications/{applicationId} {
-      // Carriers can read their own; requesters can read apps for their requests; admins read all
+      // Applicant, task owner, managers, and admins can read
       allow read: if isAuthenticated() && (
-                    resource.data.carrierId == request.auth.uid ||
-                    get(/databases/$(database)/documents/requests/$(resource.data.requestId)).data.requesterId == request.auth.uid ||
+                    resource.data.userId == request.auth.uid ||
+                    isManagerOrAdmin() ||
                     isAdmin()
-                  );
-                  
-      // Carriers can create applications
+                   );
+                   
+      // Only verified carriers can create applications
       allow create: if isAuthenticated() && 
-                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'carrier' &&
+                    isVerifiedCarrier() &&
                     isValidApplication(request.resource.data) &&
-                    request.resource.data.carrierId == request.auth.uid &&
+                    request.resource.data.userId == request.auth.uid &&
                     request.resource.data.status == 'pending';
                     
-      // Admins can update applications (accept/reject)
-      allow update: if isAuthenticated() && isValidApplication(request.resource.data) && isAdmin();
+      // Only task owner, managers, and admins can update applications (accept/reject)
+      allow update: if isAuthenticated() && isValidApplication(request.resource.data) && (
+                      isManagerOrAdmin() || isAdmin()
+                    );
+    }
+
+    // ─── Follows (Prepared, not fully implemented) ─────────────
+    match /follows/{followId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+                    resource.data.userId == request.auth.uid;
     }
   }
 }

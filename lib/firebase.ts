@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, memoryLocalCache, Firestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -12,15 +12,26 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const firestoreDatabaseId = process.env.NEXT_PUBLIC_FIREBASE_FIRESTORE_DATABASE_ID || '(default)';
+let app;
+let db: Firestore;
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+if (!getApps().length) {
+  // Fresh initialization — use memory cache to prevent
+  // "client is offline" errors (no IndexedDB persistence needed)
+  app = initializeApp(firebaseConfig);
+  db = initializeFirestore(app, {
+    localCache: memoryLocalCache(),
+  });
+} else {
+  app = getApp();
+  db = getFirestore(app);
+}
 
-export const db = getFirestore(app, firestoreDatabaseId);
+export { db };
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Set persistence to LOCAL so sessions survive browser restarts
+// Set auth persistence to LOCAL so sessions survive browser restarts
 if (typeof window !== 'undefined') {
   setPersistence(auth, browserLocalPersistence).catch(console.error);
 }

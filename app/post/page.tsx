@@ -8,56 +8,57 @@ import { useProtectedRoute } from '@/hooks/use-protected-route';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Package, MapPin, Calendar, DollarSign, Loader2 } from 'lucide-react';
+import { FileText, MapPin, Calendar, Loader2, AlignLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export default function PostRequestPage() {
+export default function PostTaskPage() {
   const { user, profile, loading, isAuthorized } = useProtectedRoute();
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
-    itemCategory: '',
-    pickupLocation: '',
-    dropLocation: '',
+    title: '',
+    description: '',
+    location: '',
     deadline: '',
-    reward: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      toast.error('You must be signed in to post a request.');
+      toast.error('You must be signed in to post a task.');
       return;
     }
 
-    if (profile?.role !== 'requester' && profile?.role !== 'admin') {
-      toast.error('Only requesters can post delivery requests.');
+    if (!formData.title.trim() || !formData.description.trim()) {
+      toast.error('Title and description are required.');
       return;
     }
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, 'requests'), {
-        requesterId: user.uid,
-        itemCategory: formData.itemCategory,
-        pickupLocation: formData.pickupLocation,
-        dropLocation: formData.dropLocation,
-        deadline: new Date(formData.deadline),
-        reward: Number(formData.reward),
-        status: 'requested',
+      await addDoc(collection(db, 'tasks'), {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        location: formData.location.trim() || null,
+        deadline: formData.deadline ? new Date(formData.deadline) : null,
+        createdBy: user.uid,
+        createdByName: profile?.displayName || user.displayName || 'Anonymous',
+        status: 'open',
+        assignedTo: null,
+        reactionCount: 0,
         createdAt: serverTimestamp(),
       });
 
-      toast.success('Request posted successfully! Waiting for admin approval.');
-      router.push('/profile');
+      toast.success('Task posted successfully! 🎉');
+      router.push('/feed');
     } catch (error) {
-      console.error('Error posting request:', error);
-      toast.error('Failed to post request.');
+      console.error('Error posting task:', error);
+      toast.error('Failed to post task.');
     } finally {
       setSubmitting(false);
     }
@@ -80,98 +81,85 @@ export default function PostRequestPage() {
       className="max-w-2xl mx-auto px-4 py-8"
     >
       <div className="mb-8">
-        <h1 className="text-3xl font-heading font-bold text-slate-900">Post a Delivery Request</h1>
-        <p className="text-slate-500 mt-2">Your request will be reviewed by an admin before being assigned to a verified carrier.</p>
+        <h1 className="text-3xl font-heading font-bold text-slate-900">Create a Task</h1>
+        <p className="text-slate-500 mt-2">Post a task for verified carriers to discover and apply.</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Delivery Details</CardTitle>
-          <CardDescription>All fields are required for admin review.</CardDescription>
+          <CardTitle>Task Details</CardTitle>
+          <CardDescription>Provide clear details so carriers know what to expect.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
+              {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Item Category</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
                 <div className="relative">
-                  <Package className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                  <select
-                    name="itemCategory"
+                  <FileText className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    name="title"
                     required
-                    value={formData.itemCategory}
+                    placeholder="e.g., Deliver package from NYC to LA"
+                    value={formData.title}
                     onChange={handleChange}
+                    maxLength={120}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  >
-                    <option value="" disabled>Select category</option>
-                    <option value="Documents">Documents</option>
-                    <option value="Medicine">Medicine</option>
-                    <option value="Electronics">Electronics</option>
-                    <option value="Clothing">Clothing</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  />
                 </div>
               </div>
 
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                <div className="relative">
+                  <AlignLeft className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                  <textarea
+                    name="description"
+                    required
+                    placeholder="Describe the task, requirements, and any important details..."
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={4}
+                    maxLength={1000}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1 text-right">{formData.description.length}/1000</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Location */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Pickup Location</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Location <span className="text-slate-400 font-normal">(optional)</span>
+                  </label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
                     <input
                       type="text"
-                      name="pickupLocation"
-                      required
+                      name="location"
                       placeholder="City, Country"
-                      value={formData.pickupLocation}
+                      value={formData.location}
                       onChange={handleChange}
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Drop-off Location</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                    <input
-                      type="text"
-                      name="dropLocation"
-                      required
-                      placeholder="City, Country"
-                      value={formData.dropLocation}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Deadline */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Deadline</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Deadline <span className="text-slate-400 font-normal">(optional)</span>
+                  </label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
                     <input
                       type="date"
                       name="deadline"
-                      required
                       value={formData.deadline}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Reward (USD)</label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                    <input
-                      type="number"
-                      name="reward"
-                      min="10"
-                      required
-                      placeholder="50"
-                      value={formData.reward}
                       onChange={handleChange}
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                     />
@@ -182,9 +170,11 @@ export default function PostRequestPage() {
 
             <Button type="submit" className="w-full" variant="signature" size="lg" disabled={submitting}>
               {submitting ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Posting...</>
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Posting...
+                </>
               ) : (
-                'Submit Request'
+                'Post Task'
               )}
             </Button>
           </form>

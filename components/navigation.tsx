@@ -4,7 +4,7 @@ import { memo, useMemo, useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
-import { Home, List, PlusCircle, User, Shield, LogIn } from 'lucide-react';
+import { Home, List, PlusCircle, User, Shield, LogIn, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import { motion } from 'motion/react';
@@ -21,17 +21,14 @@ export const Navigation = memo(function Navigation() {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // Check initial position
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Determine if we're on the home page (transparent nav at top)
   const isHomePage = pathname === '/';
-
-  // Navbar style: transparent on home page top, frosted glass when scrolled or on other pages
   const showFrosted = scrolled || !isHomePage;
 
-  // Memoize nav items to prevent array recreation
+  // Desktop nav items
   const navItems = useMemo(() => {
     const items = [
       { name: 'Home', href: '/', icon: Home },
@@ -45,6 +42,8 @@ export const Navigation = memo(function Navigation() {
 
     if (profile?.role === 'admin') {
       items.push({ name: 'Admin', href: '/admin', icon: Shield });
+    } else if (profile?.role === 'manager') {
+      items.push({ name: 'Dashboard', href: '/admin', icon: LayoutDashboard });
     }
 
     return items;
@@ -63,6 +62,8 @@ export const Navigation = memo(function Navigation() {
 
     if (profile?.role === 'admin') {
       items.push({ name: 'Admin', href: '/admin', icon: Shield });
+    } else if (profile?.role === 'manager') {
+      items.push({ name: 'Manage', href: '/admin', icon: LayoutDashboard });
     }
 
     return items;
@@ -75,7 +76,7 @@ export const Navigation = memo(function Navigation() {
     }
   }, [router]);
 
-  // Hide navigation on auth pages - must be AFTER hooks
+  // Hide navigation on auth pages
   if (pathname.startsWith('/auth/')) return null;
 
   return (
@@ -144,7 +145,7 @@ export const Navigation = memo(function Navigation() {
                 href="/post"
                 className="ml-2 inline-flex items-center px-5 py-2 rounded-xl bg-gradient-signature text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               >
-                Post Request
+                Post Task
               </Link>
 
               {/* Desktop avatar when logged in */}

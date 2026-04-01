@@ -1,19 +1,36 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { collection, query, where, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  getDocs,
+  limit,
+  startAfter,
+  onSnapshot,
+  Unsubscribe,
+  QueryDocumentSnapshot,
+  DocumentData,
+} from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from './auth-context';
-import { RequestData } from '@/components/request-card';
+import { TaskData } from '@/components/task-card';
+
+const FEED_PAGE_SIZE = 15;
 
 // ─── Types ────────────────────────────────────────────────────
 interface DataCacheContextType {
-  // Feed data (approved requests)
-  feedRequests: RequestData[];
+  // Feed data (open tasks — paginated)
+  feedTasks: TaskData[];
   feedLoading: boolean;
+  feedHasMore: boolean;
+  loadMoreTasks: () => Promise<void>;
+  refreshFeed: () => Promise<void>;
 
-  // Admin data (all requests, applications, users)
-  allRequests: RequestData[];
+  // Admin data (all tasks, applications, users)
+  allTasks: TaskData[];
   applications: any[];
   allUsers: any[];
   adminDataLoading: boolean;
@@ -24,9 +41,12 @@ interface DataCacheContextType {
 }
 
 const DataCacheContext = createContext<DataCacheContextType>({
-  feedRequests: [],
+  feedTasks: [],
   feedLoading: true,
-  allRequests: [],
+  feedHasMore: false,
+  loadMoreTasks: async () => {},
+  refreshFeed: async () => {},
+  allTasks: [],
   applications: [],
   allUsers: [],
   adminDataLoading: true,
@@ -38,105 +58,128 @@ const DataCacheContext = createContext<DataCacheContextType>({
 export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   const { user, profile } = useAuth();
 
-  // Feed state — subscribed for all authenticated users
-  const [feedRequests, setFeedRequests] = useState<RequestData[]>([]);
+  // Feed state — paginated, NOT real-time
+  const [feedTasks, setFeedTasks] = useState<TaskData[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
-  const feedUnsubRef = useRef<Unsubscribe | null>(null);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
 
-  // Admin state — only subscribed on demand (when admin navigates there)
-  const [allRequests, setAllRequests] = useState<RequestData[]>([]);
+  // Admin state — only subscribed on demand
+  const [allTasks, setAllTasks] = useState<TaskData[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [adminDataLoading, setAdminDataLoading] = useState(true);
   const [isAdminSubscribed, setIsAdminSubscribed] = useState(false);
   const adminUnsubsRef = useRef<Unsubscribe[]>([]);
 
-  // ── Feed: approved requests (lightweight, always-on for logged-in users) ──
+  // ── Feed: paginated open tasks ──────────────────────────────
+  const fetchFeedPage = useCallback(async (isRefresh = false) => {
+    setFeedLoading(true);
+    try {
+      let q;
+      if (isRefresh || !lastDocRef.current) {
+        q = query(
+          collection(db, 'tasks'),
+          where('status', '==', 'open'),
+          orderBy('createdAt', 'desc'),
+          limit(FEED_PAGE_SIZE)
+        );
+      } else {
+        q = query(
+          collection(db, 'tasks'),
+          where('status', '==', 'open'),
+          orderBy('createdAt', 'desc'),
+          startAfter(lastDocRef.current),
+          limit(FEED_PAGE_SIZE)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const tasks = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as TaskData[];
+
+      if (snapshot.docs.length > 0) {
+        lastDocRef.current = snapshot.docs[snapshot.docs.length - 1];
+      }
+
+      setFeedHasMore(snapshot.docs.length === FEED_PAGE_SIZE);
+
+      if (isRefresh) {
+        setFeedTasks(tasks);
+      } else {
+        setFeedTasks((prev) => [...prev, ...tasks]);
+      }
+    } catch (error) {
+      console.error('Feed fetch error:', error);
+    } finally {
+      setFeedLoading(false);
+    }
+  }, []);
+
+  // Initial feed load
   useEffect(() => {
-    // Clean up previous subscription
-    if (feedUnsubRef.current) {
-      feedUnsubRef.current();
-      feedUnsubRef.current = null;
-    }
+    lastDocRef.current = null;
+    setFeedTasks([]);
+    fetchFeedPage(true);
+  }, [user, fetchFeedPage]);
 
-    if (!user) {
-      setFeedRequests([]);
-      setFeedLoading(false);
-      return;
-    }
+  const loadMoreTasks = useCallback(async () => {
+    if (!feedHasMore) return;
+    await fetchFeedPage(false);
+  }, [feedHasMore, fetchFeedPage]);
 
-    const q = query(
-      collection(db, 'requests'),
-      where('status', '==', 'approved'),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      setFeedRequests(
-        snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as RequestData[]
-      );
-      setFeedLoading(false);
-    }, (error) => {
-      console.error('Feed snapshot error:', error);
-      setFeedLoading(false);
-    });
-
-    feedUnsubRef.current = unsub;
-
-    return () => {
-      unsub();
-      feedUnsubRef.current = null;
-    };
-  }, [user]);
+  const refreshFeed = useCallback(async () => {
+    lastDocRef.current = null;
+    await fetchFeedPage(true);
+  }, [fetchFeedPage]);
 
   // ── Admin: on-demand subscription ─────────────────────────────
   const subscribeToAdminData = useCallback(() => {
-    if (isAdminSubscribed) return; // Already active
-    if (profile?.role !== 'admin') return; // Not authorized
+    if (isAdminSubscribed) return;
+    if (profile?.role !== 'admin' && profile?.role !== 'manager') return;
 
     setIsAdminSubscribed(true);
 
-    let requestsLoaded = false;
+    let tasksLoaded = false;
     let appsLoaded = false;
     let usersLoaded = false;
 
     const checkLoaded = () => {
-      if (requestsLoaded && appsLoaded && usersLoaded) {
+      if (tasksLoaded && appsLoaded && usersLoaded) {
         setAdminDataLoading(false);
       }
     };
 
-    const unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
-      setAllRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RequestData[]);
-      requestsLoaded = true;
+    const unsubTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
+      setAllTasks(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as TaskData[]);
+      tasksLoaded = true;
       checkLoaded();
     });
 
     const unsubApps = onSnapshot(collection(db, 'applications'), (snapshot) => {
-      setApplications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setApplications(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       appsLoaded = true;
       checkLoaded();
     });
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      setAllUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setAllUsers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       usersLoaded = true;
       checkLoaded();
     });
 
-    adminUnsubsRef.current = [unsubRequests, unsubApps, unsubUsers];
+    adminUnsubsRef.current = [unsubTasks, unsubApps, unsubUsers];
   }, [isAdminSubscribed, profile?.role]);
 
   // Clean up admin subscriptions when user logs out
   useEffect(() => {
     if (!user && isAdminSubscribed) {
-      adminUnsubsRef.current.forEach(unsub => unsub());
+      adminUnsubsRef.current.forEach((unsub) => unsub());
       adminUnsubsRef.current = [];
       setIsAdminSubscribed(false);
-      setAllRequests([]);
+      setAllTasks([]);
       setApplications([]);
       setAllUsers([]);
       setAdminDataLoading(true);
@@ -146,30 +189,40 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      adminUnsubsRef.current.forEach(unsub => unsub());
+      adminUnsubsRef.current.forEach((unsub) => unsub());
     };
   }, []);
 
-  const value = useMemo(() => ({
-    feedRequests,
-    feedLoading,
-    allRequests,
-    applications,
-    allUsers,
-    adminDataLoading,
-    subscribeToAdminData,
-    isAdminSubscribed,
-  }), [
-    feedRequests, feedLoading,
-    allRequests, applications, allUsers, adminDataLoading,
-    subscribeToAdminData, isAdminSubscribed,
-  ]);
-
-  return (
-    <DataCacheContext.Provider value={value}>
-      {children}
-    </DataCacheContext.Provider>
+  const value = useMemo(
+    () => ({
+      feedTasks,
+      feedLoading,
+      feedHasMore,
+      loadMoreTasks,
+      refreshFeed,
+      allTasks,
+      applications,
+      allUsers,
+      adminDataLoading,
+      subscribeToAdminData,
+      isAdminSubscribed,
+    }),
+    [
+      feedTasks,
+      feedLoading,
+      feedHasMore,
+      loadMoreTasks,
+      refreshFeed,
+      allTasks,
+      applications,
+      allUsers,
+      adminDataLoading,
+      subscribeToAdminData,
+      isAdminSubscribed,
+    ]
   );
+
+  return <DataCacheContext.Provider value={value}>{children}</DataCacheContext.Provider>;
 }
 
 export const useDataCache = () => useContext(DataCacheContext);

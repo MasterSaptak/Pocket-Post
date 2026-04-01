@@ -1,20 +1,99 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogIn, LogOut, User, Shield, Truck, Package, Camera, Mail, Star } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { LogOut, User, Shield, UserCheck, Package, Mail, Zap, ClipboardList, Loader2, CheckCircle } from 'lucide-react';
+import { doc, updateDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
 import Link from 'next/link';
 
+interface MyTask {
+  id: string;
+  title: string;
+  status: string;
+  createdAt: any;
+}
+
+interface MyApplication {
+  id: string;
+  taskId: string;
+  taskTitle?: string;
+  status: string;
+  createdAt: any;
+}
+
 export default function ProfilePage() {
   const { user, profile, loading, signInWithGoogle, signOut } = useAuth();
   const [updating, setUpdating] = useState(false);
+  const [myTasks, setMyTasks] = useState<MyTask[]>([]);
+  const [myApplications, setMyApplications] = useState<MyApplication[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
+
+  // Fetch user's tasks and applications
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUserData = async () => {
+      setDataLoading(true);
+      try {
+        // Fetch tasks created by this user
+        const tasksSnap = await getDocs(
+          query(
+            collection(db, 'tasks'),
+            where('createdBy', '==', user.uid),
+            orderBy('createdAt', 'desc')
+          )
+        );
+        setMyTasks(tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as MyTask)));
+
+        // Fetch applications by this user
+        const appsSnap = await getDocs(
+          query(
+            collection(db, 'applications'),
+            where('userId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+          )
+        );
+        const apps = appsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as MyApplication));
+
+        // Resolve task titles for applications
+        const taskIds = [...new Set(apps.map((a) => a.taskId))];
+        const taskTitles: Record<string, string> = {};
+        for (const taskId of taskIds.slice(0, 10)) {
+          try {
+            const taskSnap = await getDocs(
+              query(collection(db, 'tasks'), where('__name__', '==', taskId))
+            );
+            // Fallback: read directly
+            if (taskSnap.empty) {
+              const { getDoc, doc: docRef } = await import('firebase/firestore');
+              const snap = await getDoc(docRef(db, 'tasks', taskId));
+              if (snap.exists()) taskTitles[taskId] = (snap.data() as any).title || 'Unknown';
+            } else {
+              taskTitles[taskId] = (taskSnap.docs[0].data() as any).title || 'Unknown';
+            }
+          } catch {
+            taskTitles[taskId] = 'Unknown Task';
+          }
+        }
+
+        setMyApplications(
+          apps.map((a) => ({ ...a, taskTitle: taskTitles[a.taskId] || 'Task' }))
+        );
+      } catch (error) {
+        console.error('Error loading profile data:', error);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
 
   if (loading) {
     return (
@@ -42,7 +121,7 @@ export default function ProfilePage() {
               Welcome to PocketPost
             </h1>
             <p className="text-slate-500 mb-8 leading-relaxed">
-              Sign in to post requests, become a carrier, or manage your deliveries.
+              Sign in to post tasks, apply to work, or manage your activity.
             </p>
 
             {/* Google Sign-in */}
@@ -71,22 +150,25 @@ export default function ProfilePage() {
     );
   }
 
-  const requestCarrierRole = async () => {
+  const requestVerification = async () => {
     if (!user || !profile) return;
     setUpdating(true);
     try {
       await updateDoc(doc(db, 'users', user.uid), {
-        role: 'carrier',
-        status: 'pending',
+        'verification.status': 'pending',
+        'verification.submittedAt': new Date(),
       });
-      toast.success('Requested carrier status! Waiting for admin verification.');
+      toast.success('Verification requested! An admin will review your application.');
     } catch (error) {
-      console.error('Error updating role:', error);
-      toast.error('Failed to request carrier status.');
+      console.error('Error requesting verification:', error);
+      toast.error('Failed to request verification.');
     } finally {
       setUpdating(false);
     }
   };
+
+  const verificationStatus = profile?.verification?.status;
+  const isVerified = profile?.isVerifiedCarrier === true;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -111,11 +193,13 @@ export default function ProfilePage() {
                 {(user.displayName || user.email || 'U')[0].toUpperCase()}
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
-              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
+            {isVerified && (
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            )}
           </div>
 
           {/* Info */}
@@ -127,13 +211,16 @@ export default function ProfilePage() {
               <Mail className="w-4 h-4" />
               <span>{user.email}</span>
             </div>
-            <div className="flex items-center justify-center sm:justify-start gap-2 mt-3">
+            <div className="flex items-center justify-center sm:justify-start gap-2 mt-3 flex-wrap">
               <Badge variant="outline" className="capitalize">
-                {profile?.role || 'Requester'}
+                {profile?.role || 'User'}
               </Badge>
-              <Badge variant={profile?.status === 'verified' ? 'approved' : 'pending'} className="capitalize">
-                {profile?.status || 'Pending'}
-              </Badge>
+              {isVerified && (
+                <Badge variant="approved">Verified Carrier</Badge>
+              )}
+              {!isVerified && verificationStatus === 'pending' && (
+                <Badge variant="pending">Verification Pending</Badge>
+              )}
             </div>
           </div>
 
@@ -146,7 +233,7 @@ export default function ProfilePage() {
       </motion.div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Account Status Card */}
+        {/* Account Details */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card>
             <CardHeader>
@@ -162,80 +249,98 @@ export default function ProfilePage() {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-500">Role</span>
-                <Badge variant="outline" className="capitalize">{profile?.role || 'Requester'}</Badge>
+                <Badge variant="outline" className="capitalize">{profile?.role || 'User'}</Badge>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                <span className="text-slate-500">Verification</span>
-                <Badge variant={profile?.status === 'verified' ? 'approved' : 'pending'} className="capitalize">
-                  {profile?.status || 'Pending'}
+                <span className="text-slate-500">Carrier Status</span>
+                <Badge variant={isVerified ? 'approved' : 'pending'} className="capitalize">
+                  {isVerified ? 'Verified' : verificationStatus === 'pending' ? 'Pending Review' : 'Not Verified'}
                 </Badge>
               </div>
-              {profile?.role === 'carrier' && profile?.carrierId && (
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Carrier ID</span>
-                  <span className="font-mono font-medium text-slate-900">{profile.carrierId}</span>
-                </div>
-              )}
-              {profile?.role === 'carrier' && profile?.rating !== undefined && (
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-500">Rating</span>
-                  <span className="font-medium text-amber-500 flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-amber-500" />
-                    {profile.rating.toFixed(1)}
-                  </span>
-                </div>
-              )}
-              {profile?.completedDeliveries !== undefined && profile.completedDeliveries > 0 && (
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-slate-500">Deliveries</span>
-                  <span className="font-medium text-emerald-600">{profile.completedDeliveries} completed</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center py-2">
+                <span className="text-slate-500">Tasks Created</span>
+                <span className="font-medium text-slate-900">{myTasks.length}</span>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Action Card — Become Carrier or Admin Link */}
-        {profile?.role === 'requester' && (
+        {/* Carrier Verification Card */}
+        {!isVerified && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-indigo-500" />
-                  Become a Carrier
+                  <UserCheck className="w-5 h-5 text-indigo-500" />
+                  Carrier Verification
                 </CardTitle>
-                <CardDescription>Earn money by delivering items securely.</CardDescription>
+                <CardDescription>Get verified to apply for tasks in the feed.</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-slate-600 mb-6">
-                  Apply to become a verified carrier. You will need to provide proof of travel and identity to admins.
+                {verificationStatus === 'pending' ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="w-8 h-8 text-indigo-500 mx-auto mb-3 animate-spin" />
+                    <p className="text-sm text-slate-600 font-medium">Under Review</p>
+                    <p className="text-xs text-slate-500 mt-1">An admin will review your verification request shortly.</p>
+                  </div>
+                ) : verificationStatus === 'rejected' ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-red-600">Your previous verification was not approved. You can re-apply.</p>
+                    <Button onClick={requestVerification} className="w-full" variant="secondary" disabled={updating}>
+                      {updating ? 'Submitting...' : 'Re-apply for Verification'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-600">
+                      Apply to become a verified carrier. Once approved, you can apply for tasks posted by other users.
+                    </p>
+                    <Button onClick={requestVerification} className="w-full" variant="signature" disabled={updating}>
+                      {updating ? 'Submitting...' : 'Request Verification'}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Verified carrier badge card */}
+        {isVerified && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-emerald-500" />
+                  Verified Carrier
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-slate-600 mb-4">
+                  You are a verified carrier! You can apply for tasks in the feed.
                 </p>
-                <Button
-                  onClick={requestCarrierRole}
-                  className="w-full"
-                  variant="secondary"
-                  disabled={updating || profile.status === 'pending'}
-                >
-                  {updating ? 'Processing...' : profile.status === 'pending' ? 'Verification Pending' : 'Apply Now'}
+                <Button asChild className="w-full" variant="signature">
+                  <Link href="/feed">Browse Tasks</Link>
                 </Button>
               </CardContent>
             </Card>
           </motion.div>
         )}
 
-        {profile?.role === 'admin' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        {/* Admin Controls Link */}
+        {(profile?.role === 'admin' || profile?.role === 'manager') && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-emerald-500" />
-                  Admin Controls
+                  {profile.role === 'admin' ? 'Admin Controls' : 'Manager Controls'}
                 </CardTitle>
-                <CardDescription>Manage platform requests and users.</CardDescription>
+                <CardDescription>Manage tasks, applications, and users.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full" variant="signature">
-                  <Link href="/admin">Go to Admin Dashboard</Link>
+                  <Link href="/admin">Go to Dashboard</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -243,20 +348,79 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Recent Activity */}
+      {/* My Tasks */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="mt-12"
+        className="mt-8"
       >
-        <h2 className="text-xl font-heading font-bold text-slate-900 mb-6 flex items-center gap-2">
+        <h2 className="text-xl font-heading font-bold text-slate-900 mb-4 flex items-center gap-2">
           <Package className="w-5 h-5 text-slate-400" />
-          Recent Activity
+          My Tasks
         </h2>
-        <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-slate-500">No recent activity to show.</p>
-        </div>
+        {dataLoading ? (
+          <div className="py-8 text-center">
+            <Loader2 className="w-6 h-6 mx-auto text-blue-500 animate-spin" />
+          </div>
+        ) : myTasks.length === 0 ? (
+          <div className="text-center py-8 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-slate-500">You haven&apos;t created any tasks yet.</p>
+            <Button asChild variant="link" className="mt-2">
+              <Link href="/post">Create your first task →</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {myTasks.slice(0, 10).map((task) => (
+              <div key={task.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100">
+                <p className="font-medium text-slate-900 truncate flex-1 mr-4">{task.title}</p>
+                <Badge variant={task.status as any} className="capitalize shrink-0">
+                  {task.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+
+      {/* My Applications */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="mt-8"
+      >
+        <h2 className="text-xl font-heading font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <Zap className="w-5 h-5 text-slate-400" />
+          My Applications
+        </h2>
+        {dataLoading ? (
+          <div className="py-8 text-center">
+            <Loader2 className="w-6 h-6 mx-auto text-blue-500 animate-spin" />
+          </div>
+        ) : myApplications.length === 0 ? (
+          <div className="text-center py-8 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-slate-500">You haven&apos;t applied to any tasks yet.</p>
+            <Button asChild variant="link" className="mt-2">
+              <Link href="/feed">Browse the feed →</Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {myApplications.slice(0, 10).map((app) => (
+              <div key={app.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100">
+                <p className="font-medium text-slate-900 truncate flex-1 mr-4">{app.taskTitle || 'Task'}</p>
+                <Badge
+                  variant={app.status === 'accepted' ? 'approved' : app.status === 'rejected' ? 'destructive' : 'pending'}
+                  className="capitalize shrink-0"
+                >
+                  {app.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
       </motion.div>
     </div>
   );

@@ -8,13 +8,16 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────
-export type UserRole = 'requester' | 'carrier' | 'admin';
+export type UserRole = 'user' | 'manager' | 'admin';
 
 export interface UserProfile {
   uid: string;
@@ -22,10 +25,13 @@ export interface UserProfile {
   email: string;
   photoURL: string;
   role: UserRole;
-  status: 'pending' | 'verified' | 'rejected';
-  carrierId?: string;
-  rating?: number;
-  completedDeliveries?: number;
+  isVerifiedCarrier: boolean;
+  verification?: {
+    status: 'pending' | 'approved' | 'rejected';
+    documentURL?: string;
+    submittedAt?: any;
+    reviewedAt?: any;
+  };
   createdAt: any;
   lastLoginAt: any;
 }
@@ -36,6 +42,8 @@ interface AuthContextType {
   loading: boolean;
   authError: string | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -46,6 +54,8 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   authError: null,
   signInWithGoogle: async () => {},
+  signInWithEmail: async () => {},
+  signUpWithEmail: async () => {},
   signOut: async () => {},
   clearError: () => {},
 });
@@ -64,7 +74,17 @@ function friendlyAuthError(code: string): string {
     case 'auth/too-many-requests':
       return 'Too many attempts. Please wait a moment and try again.';
     case 'auth/cancelled-popup-request':
-      return ''; // silent — happens when user clicks multiple times
+      return ''; // silent
+    case 'auth/email-already-in-use':
+      return 'This email is already registered. Try signing in instead.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid email address.';
+    case 'auth/weak-password':
+      return 'Password must be at least 6 characters long.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Invalid email or password. Please try again.';
     default:
       return 'Something went wrong during sign-in. Please try again.';
   }
@@ -75,7 +95,7 @@ async function upsertUserProfile(firebaseUser: FirebaseUser): Promise<UserProfil
   const docSnap = await getDoc(docRef);
 
   if (docSnap.exists()) {
-    // Existing user — update last login + any changed Google info
+    // Existing user — update last login + any changed info
     const existing = docSnap.data() as UserProfile;
     const updates: Partial<UserProfile> = {
       lastLoginAt: serverTimestamp(),
@@ -92,8 +112,8 @@ async function upsertUserProfile(firebaseUser: FirebaseUser): Promise<UserProfil
       displayName: firebaseUser.displayName || 'Anonymous',
       email: firebaseUser.email || '',
       photoURL: firebaseUser.photoURL || '',
-      role: 'requester',
-      status: 'pending',
+      role: 'user',
+      isVerifiedCarrier: false,
       createdAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
     };
@@ -109,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Real-time profile listener — keeps profile in sync if admin updates role/status
+  // Real-time profile listener — keeps profile in sync if admin updates role/verification
   useEffect(() => {
     if (!user) return;
 
@@ -184,7 +204,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           : `Welcome back, ${result.user.displayName}!`
       );
     } catch (error: any) {
-      // If popup fails (e.g. mobile), fall back to redirect
       if (error.code === 'auth/popup-blocked') {
         try {
           await signInWithRedirect(auth, provider);
@@ -200,6 +219,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast.error(msg);
       }
       console.error('Sign-in error:', error);
+    }
+  }, []);
+
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    setAuthError(null);
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      toast.success(`Welcome back, ${result.user.displayName || 'User'}!`);
+    } catch (error: any) {
+      const msg = friendlyAuthError(error.code || '');
+      if (msg) {
+        setAuthError(msg);
+        toast.error(msg);
+      }
+      console.error('Email sign-in error:', error);
+    }
+  }, []);
+
+  const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
+    setAuthError(null);
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      // Set display name on the Firebase auth user
+      await updateProfile(result.user, { displayName });
+      toast.success(`Welcome to PocketPost, ${displayName}! 🎉`);
+    } catch (error: any) {
+      const msg = friendlyAuthError(error.code || '');
+      if (msg) {
+        setAuthError(msg);
+        toast.error(msg);
+      }
+      console.error('Email sign-up error:', error);
     }
   }, []);
 
@@ -224,6 +275,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         authError,
         signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
         signOut: handleSignOut,
         clearError,
       }}
