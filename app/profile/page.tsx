@@ -361,7 +361,7 @@ export default function ProfilePage() {
                       <p className="text-xs text-slate-500 leading-snug">Unlock bidding capabilities and priority access to premium tasks on the marketplace.</p>
                     </div>
                   </div>
-                  <Button onClick={requestVerification} disabled={updating || verificationStatus === 'pending'} className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all h-11 px-6">
+                  <Button onClick={requestVerification} disabled={updating || (verificationStatus as string) === 'pending'} className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all h-11 px-6">
                     {updating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Get Verified'}
                   </Button>
                 </div>
