@@ -62,27 +62,66 @@ service cloud.firestore {
       return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.description is string && data.description.size() > 0 &&
              data.createdBy is string && data.createdBy.size() > 0 &&
-             data.status in ['pending', 'open', 'rejected', 'assigned', 'completed', 'cancelled'] &&
+             data.status in ['pending', 'open', 'rejected', 'assigned', 'in_progress', 'completed', 'cancelled', 'expired'] &&
              data.reactionCount is number && data.reactionCount >= 0 &&
              data.createdAt is timestamp &&
              (!('isEmergency' in data) || data.isEmergency is bool) &&
-             (!('isPinned' in data) || data.isPinned is bool);
+             (!('isPinned' in data) || data.isPinned is bool) &&
+             (!('isHidden' in data) || data.isHidden is bool) &&
+             (!('isDeleted' in data) || data.isDeleted is bool) &&
+             (!('bounty' in data) || data.bounty is number) &&
+             (!('priorityLevel' in data) || data.priorityLevel in ['standard', 'priority', 'urgent', 'critical']) &&
+             (!('parcelType' in data) || data.parcelType in ['document', 'fragile', 'food', 'other']) &&
+             (!('weight' in data) || data.weight is number) &&
+             (!('bidsCount' in data) || data.bidsCount == 0) &&
+             (!('followsCount' in data) || data.followsCount == 0) &&
+             (!('viewsCount' in data) || data.viewsCount == 0) &&
+             (!('queueCount' in data) || data.queueCount == 0) &&
+             (!('deadline' in data) || data.deadline == null || data.deadline is timestamp) &&
+             (!('locationCoords' in data) || data.locationCoords == null || (data.locationCoords.lat is number && data.locationCoords.lng is number)) &&
+             (!('pickupLocation' in data) || data.pickupLocation is string) &&
+             (!('dropoffLocation' in data) || data.dropoffLocation is string) &&
+             (!('pickupTime' in data) || data.pickupTime == null || data.pickupTime is timestamp) &&
+             (!('dropoffTime' in data) || data.dropoffTime == null || data.dropoffTime is timestamp) &&
+             (!('currency' in data) || data.currency in ['INR', 'BDT', 'USD', 'EUR', 'GBP']) &&
+             (!('size' in data) || data.size in ['small', 'medium', 'large']) &&
+             (!('pricingType' in data) || data.pricingType in ['fixed', 'bidding']) &&
+             (!('isFragile' in data) || data.isFragile is bool) &&
+             (!('isBoosted' in data) || data.isBoosted is bool) &&
+             (!('assignedTo' in data) || data.assignedTo == null || data.assignedTo is string) &&
+             (!('imageUrl' in data) || data.imageUrl is string || data.imageUrl == null);
     }
 
     function isValidApplication(data) {
       return data.taskId is string && data.taskId.size() > 0 &&
              data.userId is string && data.userId.size() > 0 &&
-             data.status in ['pending', 'accepted', 'rejected'] &&
+             data.status in ['pending', 'accepted', 'rejected', 'cancelled'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidQueue(data) {
+      return data.taskId is string && data.taskId.size() > 0 &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.status in ['waiting', 'promoted', 'cancelled'] &&
+             data.position is number &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidReassignRequest(data) {
+      return data.taskId is string && data.taskId.size() > 0 &&
+             data.requestedBy is string && data.requestedBy.size() > 0 &&
+             data.reason is string &&
+             data.status in ['pending', 'approved', 'rejected'] &&
              data.createdAt is timestamp;
     }
 
     // ===============================================================
-    // Rules
+    // Rules — SECURITY LAYER ONLY (logic lives in backend)
     // ===============================================================
     
     // ─── Users ─────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if isAuthenticated(); // Allow reading profile basics
+      allow read: if isAuthenticated();
       
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) &&
                     ((request.resource.data.get('role', 'user') != 'admin' && request.resource.data.get('role', 'user') != 'moderator') || isAdmin());
@@ -96,7 +135,11 @@ service cloud.firestore {
 
     // ─── Tasks ─────────────────────────────────────────────────
     match /tasks/{taskId} {
-      allow read: if isAuthenticated();
+      // Clean read: admins see everything, users see non-hidden/non-deleted
+      allow read: if isAuthenticated() && (
+                    isModeratorOrAdmin() ||
+                    (resource.data.get('isHidden', false) == false && resource.data.get('isDeleted', false) == false)
+                  );
       
       allow create: if isAuthenticated() && !isBanned() &&
                     isValidTask(request.resource.data) &&
@@ -104,23 +147,41 @@ service cloud.firestore {
                     (request.resource.data.status == 'pending' || isModeratorOrAdmin()) &&
                     request.resource.data.reactionCount == 0;
                     
+      // Users can ONLY increment reactionCount by exactly +1
+      // ALL other stat updates (followsCount, queueCount, viewsCount) go through transactions
       allow update: if isAuthenticated() && !isBanned() && (
+                      // Like: any user can +1 reaction
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCount']) &&
                        request.resource.data.reactionCount == resource.data.reactionCount + 1) ||
+                      // Follow count updates via transactions (increment or decrement by 1)
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followsCount']) &&
+                       (request.resource.data.followsCount == resource.data.get('followsCount', 0) + 1 ||
+                        request.resource.data.followsCount == resource.data.get('followsCount', 0) - 1)) ||
+                      // Queue count updates via transactions (increment or decrement by 1)
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['queueCount']) &&
+                       (request.resource.data.queueCount == resource.data.get('queueCount', 0) + 1 ||
+                        request.resource.data.queueCount == resource.data.get('queueCount', 0) - 1)) ||
+                      // Owner edits (cannot touch protected fields)
                       (resource.data.createdBy == request.auth.uid && 
-                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'createdBy', 'reactionCount', 'isPinned', 'isEmergency'])) ||
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                         'status', 'createdBy', 'reactionCount', 'isPinned', 'isEmergency',
+                         'bidsCount', 'viewsCount', 'followsCount', 'queueCount', 'assignedTo', 'isHidden'
+                       ])) ||
+                      // Admin/Mod: full control
                       isModeratorOrAdmin()
                     );
 
-      allow delete: if isAuthenticated() && (resource.data.createdBy == request.auth.uid || isModeratorOrAdmin());
+      allow delete: if isAuthenticated() && isModeratorOrAdmin();
     }
 
-    // ─── Applications ──────────────────────────────────────────
+    // ─── Applications (Bids) ────────────────────────────────────
     match /applications/{applicationId} {
+      // Applicant sees their own bids + task owner sees bids on their tasks + admins see all
       allow read: if isAuthenticated() && (
                     resource.data.userId == request.auth.uid ||
-                    isModeratorOrAdmin() ||
-                    isAdmin()
+                    (exists(/databases/$(database)/documents/tasks/$(resource.data.taskId)) &&
+                     get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.createdBy == request.auth.uid) ||
+                    isModeratorOrAdmin()
                    );
                    
       allow create: if isAuthenticated() && !isBanned() &&
@@ -130,17 +191,62 @@ service cloud.firestore {
                     request.resource.data.status == 'pending';
                     
       allow update: if isAuthenticated() && !isBanned() && isValidApplication(request.resource.data) && (
-                      isModeratorOrAdmin() || isAdmin()
+                      isModeratorOrAdmin() || 
+                      (resource.data.userId == request.auth.uid && request.resource.data.status == 'cancelled' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
                     );
     }
 
-    // ─── Follows (Prepared, not fully implemented) ─────────────
-    match /follows/{followId} {
-      allow read: if isAuthenticated();
+    // ─── Queue System ──────────────────────────────────────────
+    match /queue/{queueId} {
+      // Users can read their own entries + admins read all
+      allow read: if isAuthenticated() && (
+                    resource.data.userId == request.auth.uid || 
+                    isModeratorOrAdmin()
+                  );
       allow create: if isAuthenticated() && !isBanned() &&
-                    request.resource.data.userId == request.auth.uid;
-      allow delete: if isAuthenticated() && !isBanned() &&
-                    resource.data.userId == request.auth.uid;
+                    isVerifiedCarrier() &&
+                    isValidQueue(request.resource.data) &&
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.status == 'waiting' &&
+                    // ENFORCE: task must exist and be assigned
+                    exists(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)) &&
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.status == 'assigned';
+      allow update: if isAuthenticated() && !isBanned() && isValidQueue(request.resource.data) && (
+                      isModeratorOrAdmin() || 
+                      (resource.data.userId == request.auth.uid && request.resource.data.status == 'cancelled' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+                    );
+    }
+
+    // ─── Reassign Requests ─────────────────────────────────────
+    match /reassignRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+                    resource.data.requestedBy == request.auth.uid ||
+                    isModeratorOrAdmin()
+                  );
+      allow create: if isAuthenticated() && !isBanned() && isValidReassignRequest(request.resource.data) && request.resource.data.requestedBy == request.auth.uid;
+      allow update: if isAuthenticated() && isModeratorOrAdmin();
+    }
+
+    // ─── Follows ───────────────────────────────────────────────
+    match /follows/{followId} {
+      // User reads own follow docs (queries filter by userId == uid)
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && !isBanned() &&
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.taskId is string &&
+                    request.resource.data.taskId.size() > 0;
+      allow delete: if isAuthenticated() && !isBanned() && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── Saved Tasks ───────────────────────────────────────────
+    match /savedTasks/{saveId} {
+      // User reads own saves only (queries filter by userId == uid)
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() &&
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.taskId is string &&
+                    request.resource.data.taskId.size() > 0;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }
 }

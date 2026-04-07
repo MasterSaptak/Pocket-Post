@@ -16,14 +16,14 @@ import { TaskCard, TaskData } from '@/components/task-card';
 import { UserProfile, UserRole } from '@/lib/auth-context';
 import { 
   Shield, Check, Users, Package, Loader2, UserCheck, X, Zap, 
-  ClipboardList, MoreVertical, Trash2, Pin, Flame, 
+  ClipboardList, MoreVertical, Trash2, Pin, Flame, MapPin,
   Ban, ShieldAlert, ShieldCheck, UserMinus, UserPlus, 
   TrendingUp, Activity, MessageSquare, Plus, AlertCircle, ChevronRight
 } from 'lucide-react';
 
 type TabKey = 'verification' | 'tasks' | 'applications' | 'users';
 type TaskSubTab = 'pending' | 'active' | 'pinned' | 'emergency' | 'all';
-type TaskSort = 'priority' | 'newest' | 'oldest' | 'likes';
+type TaskSort = 'priority' | 'newest' | 'oldest' | 'likes' | 'bounty' | 'closing_soon' | 'most_activity';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -278,6 +278,17 @@ export default function AdminDashboard() {
         case 'newest': return timeB - timeA;
         case 'oldest': return timeA - timeB;
         case 'likes':  return (b.reactionCount || 0) - (a.reactionCount || 0);
+        case 'bounty': return (b.bounty || 0) - (a.bounty || 0);
+        case 'closing_soon': {
+          const dA = a.deadline?.toDate ? a.deadline.toDate().getTime() : a.deadline ? new Date(a.deadline).getTime() : Infinity;
+          const dB = b.deadline?.toDate ? b.deadline.toDate().getTime() : b.deadline ? new Date(b.deadline).getTime() : Infinity;
+          return dA - dB;
+        }
+        case 'most_activity': {
+          const actA = (a.bidsCount || 0) + (a.followsCount || 0) + (a.viewsCount || 0);
+          const actB = (b.bidsCount || 0) + (b.followsCount || 0) + (b.viewsCount || 0);
+          return actB - actA;
+        }
         case 'priority':
         default:
           if (a.isEmergency && !b.isEmergency) return -1;
@@ -409,6 +420,9 @@ export default function AdminDashboard() {
                     <option value="newest">🕒 Newest First</option>
                     <option value="oldest">⏳ Oldest First</option>
                     <option value="likes">❤️ Most Liked</option>
+                    <option value="bounty">💰 Highest Bounty</option>
+                    <option value="closing_soon">⏱️ Closing Soon</option>
+                    <option value="most_activity">📈 Most Activity</option>
                   </select>
                 </div>
               </div>
@@ -420,14 +434,27 @@ export default function AdminDashboard() {
                     <p className="text-slate-400 font-bold">No active intel for this frequency.</p>
                   </div>
                 ) : (
-                  filteredTasks.map(task => (
-                    <TaskCard 
-                      key={task.id} 
-                      task={task} 
-                      isAdminView 
-                      onAction={handleTaskAction}
-                    />
-                  ))
+                  filteredTasks.map(task => {
+                    let adminTask = { ...task };
+                    if (task.assignedTo && allUsers.length > 0) {
+                      const au = allUsers.find((u: any) => u.uid === task.assignedTo || u.id === task.assignedTo);
+                      if (au) {
+                        adminTask.assignedToUser = {
+                          name: au.displayName || 'Unknown',
+                          email: au.email || '',
+                          avatar: au.photoURL || null,
+                        };
+                      }
+                    }
+                    return (
+                      <TaskCard 
+                        key={adminTask.id} 
+                        task={adminTask} 
+                        isAdminView 
+                        onAction={handleTaskAction}
+                      />
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -544,25 +571,120 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Applications Tab (Standard View) */}
+          {/* Applications Tab — Full Identity Resolution */}
           {currentTab === 'applications' && (
             <div className="space-y-4">
-               {pendingApplications.map(app => (
-                 <div key={app.id} className="bg-white p-6 rounded-3xl border border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 hover:border-emerald-200 transition-colors">
-                    <div className="flex items-center gap-4">
-                       <div className="h-14 w-1 flex bg-emerald-500 rounded-full" />
-                       <div>
-                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Incoming Application</p>
-                         <h4 className="font-black text-slate-900 text-lg leading-tight">Carrier Query: {app.userId.slice(0,8)}</h4>
-                         <p className="text-xs text-slate-500">Target Intel: {app.taskId.slice(0,8)}</p>
-                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                       <Button size="sm" variant="signature" className="rounded-xl px-6" onClick={() => acceptApplication(app.id, app.taskId, app.userId)}>Grant Access</Button>
-                       <Button size="sm" variant="outline" className="rounded-xl" onClick={() => rejectApplication(app.id)}>Deny</Button>
-                    </div>
+               {pendingApplications.length === 0 && (
+                 <div className="py-20 text-center glass-panel rounded-3xl border-dashed">
+                   <Zap className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                   <p className="text-slate-400 font-bold">No pending applications.</p>
                  </div>
-               ))}
+               )}
+               {pendingApplications.map(app => {
+                 // Resolve applicant identity
+                 const applicant = allUsers.find((u: any) => u.uid === app.userId || u.id === app.userId);
+                 const applicantName = applicant?.displayName || 'Unknown User';
+                 const applicantEmail = applicant?.email || 'No email';
+                 const applicantPhoto = applicant?.photoURL || null;
+                 const applicantInitial = applicantName[0]?.toUpperCase() || '?';
+                 const isApplicantVerified = applicant?.isVerifiedCarrier === true;
+                 const applicantRole = applicant?.role || 'user';
+
+                 // Resolve target task
+                 const task = allTasks.find((t: any) => t.id === app.taskId);
+                 const taskTitle = task?.title || 'Unknown Task';
+                 const taskBounty = task?.bounty || 0;
+                 const taskPriority = task?.priorityLevel || 'standard';
+                 const taskLocation = task?.location || null;
+
+                 // Applied date
+                 const appliedAt = app.createdAt?.toDate ? app.createdAt.toDate() : null;
+
+                 return (
+                  <div key={app.id} className="bg-white rounded-3xl border border-slate-100 overflow-hidden hover:border-blue-200 transition-all shadow-sm hover:shadow-md">
+                    {/* Applicant Header */}
+                    <div className="p-5 flex flex-col sm:flex-row justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        {/* Applicant Avatar */}
+                        {applicantPhoto ? (
+                          <img src={applicantPhoto} alt={applicantName}
+                            className="w-12 h-12 rounded-2xl object-cover ring-2 ring-slate-100 shrink-0" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shrink-0">
+                            {applicantInitial}
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          {/* Name + Badges */}
+                          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                            <h4 className="font-black text-slate-900 text-base leading-tight">{applicantName}</h4>
+                            {isApplicantVerified && (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-black uppercase">
+                                <Check className="w-2.5 h-2.5" /> Verified
+                              </span>
+                            )}
+                            {applicantRole !== 'user' && (
+                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black uppercase">
+                                {applicantRole}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Email */}
+                          <p className="text-xs text-slate-400 mb-2">{applicantEmail}</p>
+
+                          {/* Target Task Info */}
+                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Applying For</p>
+                            <p className="font-bold text-slate-800 text-sm leading-tight mb-1">{taskTitle}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {taskBounty > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-emerald-600 text-[10px] font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">
+                                  ₹{taskBounty.toLocaleString()}
+                                </span>
+                              )}
+                              {taskPriority !== 'standard' && (
+                                <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md border ${
+                                  taskPriority === 'critical' ? 'bg-red-50 text-red-600 border-red-200'
+                                  : taskPriority === 'urgent' ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                  : 'bg-blue-50 text-blue-600 border-blue-200'
+                                }`}>
+                                  {taskPriority}
+                                </span>
+                              )}
+                              {taskLocation && (
+                                <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                                  <MapPin className="w-2.5 h-2.5" /> {taskLocation}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Applied timestamp */}
+                          {appliedAt && (
+                            <p className="text-[10px] text-slate-400 mt-2">
+                              Applied {appliedAt.toLocaleDateString()} at {appliedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex sm:flex-col gap-2 shrink-0 sm:items-end sm:justify-center">
+                        <Button size="sm" variant="signature" className="rounded-xl px-6 shadow-md shadow-blue-100"
+                          onClick={() => acceptApplication(app.id, app.taskId, app.userId)}>
+                          <Check className="w-4 h-4 mr-1.5" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="rounded-xl px-4"
+                          onClick={() => rejectApplication(app.id)}>
+                          <X className="w-4 h-4 mr-1.5" /> Deny
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                 );
+               })}
             </div>
           )}
         </motion.div>

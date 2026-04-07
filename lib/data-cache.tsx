@@ -80,14 +80,14 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       if (isRefresh || !lastDocRef.current) {
         q = query(
           collection(db, 'tasks'),
-          where('status', '==', 'open'),
+          where('status', 'in', ['open', 'assigned', 'completed']),
           orderBy('createdAt', 'desc'),
           limit(FEED_PAGE_SIZE)
         );
       } else {
         q = query(
           collection(db, 'tasks'),
-          where('status', '==', 'open'),
+          where('status', 'in', ['open', 'assigned', 'completed']),
           orderBy('createdAt', 'desc'),
           startAfter(lastDocRef.current),
           limit(FEED_PAGE_SIZE)
