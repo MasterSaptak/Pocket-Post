@@ -170,6 +170,8 @@ service cloud.firestore {
                       // Moderator: limited control (cannot change role, uid, or createdAt)
                       (isModeratorOrAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid', 'createdAt']))
                     );
+
+      allow delete: if isAdmin();
     }
 
     // ─── Tasks ─────────────────────────────────────────────────

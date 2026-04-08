@@ -217,6 +217,18 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  const deleteUser = useCallback(async (userId: string) => {
+    if (!isAdmin) return toast.error('Only Prime Admins can delete users.');
+    if (!confirm('CRITICAL: Are you sure you want to PERMANENTLY delete this user data? This action cannot be undone.')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+      toast.success('User record deleted from database.');
+    } catch (error) {
+      toast.error('Failed to delete user record.');
+    }
+  }, [isAdmin]);
+
   // ─── Task Actions Registry ──────────────────────────────────────
   const handleTaskAction = useCallback(async (action: string, task: TaskData) => {
     switch (action) {
@@ -480,58 +492,68 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {allUsers.map((u: UserProfile) => (
-                        <tr key={u.uid} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-8 py-4">
-                            <div className="flex items-center gap-3">
+                        <tr key={u.uid} className="hover:bg-slate-50/50 transition-colors group h-20">
+                          <td className="px-8 py-4 align-middle">
+                            <div className="flex items-center gap-4">
                               {u.photoURL ? (
-                                <img src={u.photoURL} alt="" className="w-10 h-10 rounded-2xl object-cover ring-2 ring-slate-100" />
+                                <div className="relative">
+                                  <img src={u.photoURL} alt="" className="w-11 h-11 rounded-2xl object-cover ring-2 ring-white shadow-md shadow-slate-200" />
+                                  <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full ${
+                                    u.isPermanentlyBanned || (u.bannedUntil && new Date(u.bannedUntil.toDate()) > new Date()) 
+                                      ? 'bg-red-500' 
+                                      : 'bg-emerald-500'
+                                  }`} />
+                                </div>
                               ) : (
-                                <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-black">
+                                <div className="w-11 h-11 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-black shadow-inner">
                                   {u.displayName[0]}
                                 </div>
                               )}
-                              <div>
-                                <p className="font-bold text-slate-900 leading-tight">{u.displayName}</p>
-                                <p className="text-[10px] font-medium text-slate-400">{u.email}</p>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 leading-tight truncate">{u.displayName}</p>
+                                <p className="text-[10px] font-medium text-slate-400 mt-0.5 truncate">{u.email}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex gap-1.5 font-black uppercase text-[10px]">
-                              {u.role === 'admin' && <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md flex items-center gap-1"><Shield className="w-2.5 h-2.5" /> PRIME</span>}
-                              {u.role === 'moderator' && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" /> MOD</span>}
-                              {u.role === 'user' && <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">USER</span>}
+                          <td className="px-6 py-4 align-middle">
+                            <div className="flex gap-1.5 font-black uppercase text-[9px] tracking-tight">
+                              {u.role === 'admin' && <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md flex items-center gap-1 border border-red-100"><Shield className="w-2.5 h-2.5" /> PRIME</span>}
+                              {u.role === 'moderator' && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md flex items-center gap-1 border border-blue-100"><ShieldCheck className="w-2.5 h-2.5" /> MOD</span>}
+                              {u.role === 'user' && <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md border border-slate-200/50">USER</span>}
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 align-middle">
                             {u.isPermanentlyBanned || (u.bannedUntil && new Date(u.bannedUntil.toDate()) > new Date()) ? (
-                              <Badge variant="destructive" className="rounded-md uppercase font-black tracking-tighter">Banned</Badge>
+                              <Badge variant="destructive" className="rounded-lg uppercase font-black text-[10px] px-2.5 py-1">Banned</Badge>
                             ) : u.isVerifiedCarrier ? (
-                              <Badge variant="approved" className="rounded-md uppercase font-black tracking-tighter">Verified</Badge>
+                              <Badge variant="approved" className="rounded-lg uppercase font-black text-[10px] px-2.5 py-1 shadow-sm shadow-blue-100/50 border-blue-200">Verified</Badge>
                             ) : (
-                              <span className="text-slate-300 font-bold uppercase text-[10px]">Standard</span>
+                              <Badge variant="secondary" className="rounded-lg uppercase font-black text-[10px] px-2.5 py-1 bg-slate-100 text-slate-400 border-slate-200/50">Standard</Badge>
                             )}
                           </td>
-                          <td className="px-8 py-4 text-right">
-                               <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <td className="px-8 py-4 text-right align-middle">
+                               <div className="flex justify-end gap-1.5">
                                {isAdmin && (
                                  <>
                                    {u.role !== 'admin' && (
-                                     <Button title="Promote to Moderator" size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50/50 hover:bg-blue-100" onClick={() => changeUserRole(u.uid, 'moderator')}>
+                                     <Button title="Promote to Moderator" size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-white border border-slate-100 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 shadow-sm transition-all" onClick={() => changeUserRole(u.uid, 'moderator')}>
                                        <ShieldAlert className="w-4 h-4" />
                                      </Button>
                                    )}
-                                   <Button title="Ban User" size="icon" variant="ghost" className="h-8 w-8 text-red-600 bg-red-50/50 hover:bg-red-100" onClick={() => banUser(u.uid, 'perm')}>
+                                   <Button title="Ban User" size="icon" variant="ghost" className="h-9 w-9 text-red-600 bg-white border border-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200 shadow-sm transition-all" onClick={() => banUser(u.uid, 'perm')}>
                                      <Ban className="w-4 h-4" />
+                                   </Button>
+                                   <Button title="Delete User Record" size="icon" variant="ghost" className="h-9 w-9 text-red-600 bg-white border border-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200 shadow-sm transition-all" onClick={() => deleteUser(u.uid)}>
+                                     <Trash2 className="w-4 h-4" />
                                    </Button>
                                  </>
                                )}
                                {u.isVerifiedCarrier && (
-                                 <Button title="Revoke Verification" size="icon" variant="ghost" className="h-8 w-8 text-amber-600 bg-amber-50/50 hover:bg-amber-100" onClick={() => removeUserVerification(u.uid)}>
+                                 <Button title="Revoke Verification" size="icon" variant="ghost" className="h-9 w-9 text-amber-600 bg-white border border-slate-100 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 shadow-sm transition-all" onClick={() => removeUserVerification(u.uid)}>
                                    <UserMinus className="w-4 h-4" />
                                  </Button>
                                )}
-                               <Button title="More Actions" size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+                               <Button title="More Actions" size="icon" variant="ghost" className="h-9 w-9 text-slate-400 bg-white border border-slate-100 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-all">
                                  <MoreVertical className="w-4 h-4" />
                                </Button>
                              </div>
