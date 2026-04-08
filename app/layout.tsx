@@ -5,6 +5,7 @@ import { AppProviders } from '@/components/providers';
 import Script from 'next/script';
 import Image from 'next/image';
 import { InstallPWA } from '@/components/InstallPWA';
+import { VersionChecker } from '@/components/VersionChecker';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -100,19 +101,96 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <InstallPWA />
+          <VersionChecker />
         </AppProviders>
         
-        <Script id="register-sw" strategy="afterInteractive">
+        <Script id="sw-bootstrap" strategy="afterInteractive">
           {`
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                  console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, function(err) {
-                  console.log('ServiceWorker registration failed: ', err);
+            (function() {
+              if (!('serviceWorker' in navigator)) return;
+
+              var SW_DEPLOY_ID = '20260408';
+              var NUKE_KEY = 'pocketpost_sw_nuked_v2';
+
+              // ═══ PHASE 1: One-time nuke of ALL old service workers ═══
+              // This frees users stuck on the old cache-first SW.
+              // Runs once, then sets a flag in localStorage.
+              if (!localStorage.getItem(NUKE_KEY)) {
+                console.log('[SW-Bootstrap] Nuking all old service workers...');
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  var promises = regs.map(function(reg) {
+                    console.log('[SW-Bootstrap] Unregistering:', reg.scope);
+                    return reg.unregister();
+                  });
+                  return Promise.all(promises);
+                }).then(function() {
+                  // Purge ALL caches
+                  if ('caches' in window) {
+                    return caches.keys().then(function(keys) {
+                      return Promise.all(keys.map(function(k) {
+                        console.log('[SW-Bootstrap] Purging cache:', k);
+                        return caches.delete(k);
+                      }));
+                    });
+                  }
+                }).then(function() {
+                  localStorage.setItem(NUKE_KEY, Date.now().toString());
+                  console.log('[SW-Bootstrap] Nuke complete. Registering fresh SW...');
+                  registerSW();
+                }).catch(function(err) {
+                  console.warn('[SW-Bootstrap] Nuke failed:', err);
+                  localStorage.setItem(NUKE_KEY, 'failed');
+                  registerSW();
                 });
+              } else {
+                registerSW();
+              }
+
+              // ═══ PHASE 2: Register SW with cache-busting query param ═══
+              function registerSW() {
+                var swUrl = '/sw.js?v=' + SW_DEPLOY_ID;
+                navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
+                  .then(function(registration) {
+                    console.log('[SW] Registered:', registration.scope);
+
+                    // Force update check immediately
+                    registration.update();
+
+                    // Re-check every 5 minutes
+                    setInterval(function() {
+                      registration.update();
+                    }, 5 * 60 * 1000);
+
+                    // If a new SW is waiting, tell it to activate now
+                    if (registration.waiting) {
+                      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+
+                    // Watch for future updates
+                    registration.addEventListener('updatefound', function() {
+                      var newWorker = registration.installing;
+                      if (!newWorker) return;
+                      newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                          newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                      });
+                    });
+                  })
+                  .catch(function(err) {
+                    console.error('[SW] Registration failed:', err);
+                  });
+              }
+
+              // ═══ PHASE 3: Auto-reload when new SW takes control ═══
+              var refreshing = false;
+              navigator.serviceWorker.addEventListener('controllerchange', function() {
+                if (refreshing) return;
+                refreshing = true;
+                console.log('[SW] New controller active — reloading page');
+                window.location.reload();
               });
-            }
+            })();
           `}
         </Script>
       </body>

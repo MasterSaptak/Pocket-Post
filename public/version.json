@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "buildTimestamp": "2026-04-08T10:36:00Z",
+  "minVersion": "1.0.0",
+  "forceUpdate": false,
+  "changelog": "Initial versioned release with cache-busting service worker and force update mechanism."
+}
