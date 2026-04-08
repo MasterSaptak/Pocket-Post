@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 
 const LOCAL_VERSION_KEY = 'pocketpost_app_version';
 const LOCAL_BUILD_KEY = 'pocketpost_build_timestamp';
-const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const CHECK_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes (aggressive for mobile)
 
 interface VersionInfo {
   version: string;
@@ -114,14 +114,19 @@ export function VersionChecker() {
         await Promise.all(keys.map(k => caches.delete(k)));
       }
 
-      // 4. Clear the nuke flag so the bootstrap re-registers a fresh SW
+      // 4. Clear ALL nuke flags so the bootstrap re-registers a fresh SW
+      localStorage.removeItem('pocketpost_sw_nuked');
       localStorage.removeItem('pocketpost_sw_nuked_v2');
+      localStorage.removeItem('pocketpost_sw_nuked_v3');
     } catch (err) {
       console.error('[VersionChecker] Cleanup error:', err);
     }
 
-    // 5. Hard reload — bypasses all caches
-    window.location.reload();
+    // 5. Hard reload — navigate with cache-buster to bypass all caches
+    //    Using URL manipulation instead of reload() for stronger cache bypass
+    const url = new URL(window.location.href);
+    url.searchParams.set('_cb', Date.now().toString());
+    window.location.replace(url.toString());
   };
 
   // ─── Monitor SW lifecycle for waiting workers ───────────────
@@ -159,14 +164,29 @@ export function VersionChecker() {
     });
   }, []);
 
-  // ─── Periodic version check ─────────────────────────────────
+  // ─── Periodic version check + visibility-based check ────────
   useEffect(() => {
     // Check on mount
     checkVersion();
 
     // Check periodically
     const interval = setInterval(checkVersion, CHECK_INTERVAL_MS);
-    return () => clearInterval(interval);
+
+    // CRITICAL for mobile: re-check when tab/app comes back to foreground
+    // Mobile browsers suspend JS when backgrounded; this catches version
+    // changes the moment the user returns to the app.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[VersionChecker] App became visible — checking version');
+        checkVersion();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [checkVersion]);
 
   // ─── Handle update action ───────────────────────────────────

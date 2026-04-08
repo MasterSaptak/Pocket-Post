@@ -109,14 +109,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             (function() {
               if (!('serviceWorker' in navigator)) return;
 
-              var SW_DEPLOY_ID = '20260408';
-              var NUKE_KEY = 'pocketpost_sw_nuked_v2';
+              var APP_VERSION = '1.1.0';
+              var NUKE_KEY = 'pocketpost_sw_nuked_v3';
+
+              // ═══ PHASE 0: Force-check ALL existing registrations on every load ═══
+              // This ensures the browser always checks for updated SW files,
+              // even if the user has been idle or on mobile background.
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(reg) {
+                  reg.update().catch(function() {});
+                });
+              });
 
               // ═══ PHASE 1: One-time nuke of ALL old service workers ═══
               // This frees users stuck on the old cache-first SW.
-              // Runs once, then sets a flag in localStorage.
+              // Bumping the NUKE_KEY (v2 → v3) forces a re-nuke for ALL users.
               if (!localStorage.getItem(NUKE_KEY)) {
-                console.log('[SW-Bootstrap] Nuking all old service workers...');
+                console.log('[SW-Bootstrap] Nuking all old service workers (v3)...');
                 navigator.serviceWorker.getRegistrations().then(function(regs) {
                   var promises = regs.map(function(reg) {
                     console.log('[SW-Bootstrap] Unregistering:', reg.scope);
@@ -135,6 +144,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   }
                 }).then(function() {
                   localStorage.setItem(NUKE_KEY, Date.now().toString());
+                  // Also clear old nuke keys to avoid localStorage bloat
+                  localStorage.removeItem('pocketpost_sw_nuked');
+                  localStorage.removeItem('pocketpost_sw_nuked_v2');
                   console.log('[SW-Bootstrap] Nuke complete. Registering fresh SW...');
                   registerSW();
                 }).catch(function(err) {
@@ -146,9 +158,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 registerSW();
               }
 
-              // ═══ PHASE 2: Register SW with cache-busting query param ═══
+              // ═══ PHASE 2: Register SW with version-based cache-busting ═══
               function registerSW() {
-                var swUrl = '/sw.js?v=' + SW_DEPLOY_ID;
+                var swUrl = '/sw.js?v=' + APP_VERSION;
                 navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                   .then(function(registration) {
                     console.log('[SW] Registered:', registration.scope);
@@ -161,17 +173,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       registration.update();
                     }, 5 * 60 * 1000);
 
-                    // If a new SW is waiting, tell it to activate now
+                    // If a new SW is already waiting, tell it to activate NOW
                     if (registration.waiting) {
                       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
                     }
 
-                    // Watch for future updates
+                    // Watch for future updates — auto-activate, never leave in waiting state
                     registration.addEventListener('updatefound', function() {
                       var newWorker = registration.installing;
                       if (!newWorker) return;
                       newWorker.addEventListener('statechange', function() {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                          console.log('[SW] New worker installed — activating immediately');
                           newWorker.postMessage({ type: 'SKIP_WAITING' });
                         }
                       });
@@ -187,7 +200,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               navigator.serviceWorker.addEventListener('controllerchange', function() {
                 if (refreshing) return;
                 refreshing = true;
-                console.log('[SW] New controller active — reloading page');
+                console.log('[SW] New controller active — hard reloading page');
                 window.location.reload();
               });
             })();

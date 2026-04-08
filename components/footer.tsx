@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 
+import versionData from '@/public/version.json';
+
 export function Footer() {
   return (
     <footer className="bg-slate-900 text-white">
@@ -105,9 +107,14 @@ export function Footer() {
       {/* Bottom Bar */}
       <div className="border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-slate-500 text-sm">
-            © {new Date().getFullYear()} PocketPost. All rights reserved.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <p className="text-slate-500 text-sm">
+              © {new Date().getFullYear()} PocketPost. All rights reserved.
+            </p>
+            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono tracking-wider font-semibold border border-slate-700/50">
+              v{versionData.version}
+            </span>
+          </div>
           <div className="flex items-center gap-6">
             <Link href="#" className="text-slate-500 hover:text-white text-sm transition-colors">
               Privacy

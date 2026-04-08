@@ -1,17 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-// PocketPost Service Worker v3 — Nuclear Cache-Busting Edition
+// PocketPost Service Worker v4 — Deterministic Update Edition
 // ═══════════════════════════════════════════════════════════════
 //
 // CRITICAL DESIGN DECISIONS:
-//   1. Navigation requests → ALWAYS network, NEVER cached
-//   2. version.json, sw.js, manifest.json → ALWAYS network
-//   3. Static assets (images, fonts) → stale-while-revalidate
-//   4. JS/CSS bundles → network-first (so deploys propagate fast)
-//   5. skipWaiting + clients.claim → instant takeover
+//   1. Navigation requests → ALWAYS network, NEVER cached, NO fallback to cache
+//   2. HTML files → NEVER cached under ANY circumstance
+//   3. version.json, sw.js, manifest.json → ALWAYS network
+//   4. Static assets (images, fonts) → stale-while-revalidate
+//   5. JS/CSS bundles → network-first (so deploys propagate fast)
+//   6. skipWaiting + clients.claim → instant takeover, zero waiting state
 //
 // On every deploy, bump APP_VERSION in lockstep with version.json
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const CACHE_NAME = `pocketpost-v${APP_VERSION}`;
 
 // Only cache truly static assets (logos, icons)
@@ -26,6 +27,7 @@ const NEVER_CACHE = [
   'version.json',
   'sw.js',
   'manifest.json',
+  '.html',
   '/api/',
   'firebaseapp',
   'googleapis',
@@ -90,18 +92,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Navigation requests (HTML pages) → ALWAYS network, NO caching
-  //    This is the #1 fix for mobile/WebView users getting stuck
+  // 4. Navigation requests (HTML pages) → ALWAYS network, NEVER from cache
+  //    This is the #1 fix for mobile/WebView users getting stuck.
+  //    We intentionally DO NOT fall back to cached HTML — stale HTML is the root cause.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() => {
-        // Offline fallback: try to serve cached root
-        return caches.match('/').then((cached) => {
-          return cached || new Response('You are offline. Please reconnect and try again.', {
-            status: 503,
-            headers: { 'Content-Type': 'text/html' },
-          });
-        });
+        return new Response(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title></head>' +
+          '<body style="font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0F172A;color:#e2e8f0">' +
+          '<div style="text-align:center;padding:2rem"><h1 style="font-size:1.5rem;margin-bottom:1rem">You are offline</h1>' +
+          '<p style="opacity:0.7">Please check your connection and try again.</p>' +
+          '<button onclick="location.reload()" style="margin-top:1.5rem;padding:0.75rem 2rem;background:#3b82f6;color:white;border:none;border-radius:12px;font-size:1rem;cursor:pointer">Retry</button></div></body></html>',
+          { status: 503, headers: { 'Content-Type': 'text/html' } }
+        );
       })
     );
     return;
