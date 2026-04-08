@@ -393,13 +393,13 @@ export default function ProfilePage() {
       <div className="flex gap-2 p-1.5 bg-slate-100/80 rounded-[1.25rem] border border-slate-200/60 mb-6 overflow-x-auto scrollbar-hide shadow-inner">
         {TABS.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap relative z-10 ${
+            className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-sm font-bold transition-all whitespace-nowrap relative z-10 ${
               activeTab === tab.key
                 ? 'bg-white text-blue-600 shadow-md shadow-blue-100/50'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}>
-            <tab.icon className={`w-3.5 h-3.5 ${activeTab === tab.key ? 'text-blue-500' : ''}`} />
-            <span className="hidden sm:inline">{tab.label}</span>
+            <tab.icon className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${activeTab === tab.key ? 'text-blue-500' : ''}`} />
+            <span className="sm:text-sm">{tab.label.replace('My ', '')}</span>
           </button>
         ))}
       </div>
