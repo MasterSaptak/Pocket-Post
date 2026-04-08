@@ -37,6 +37,15 @@ export interface UserProfile {
   bannedUntil?: any;
   banReason?: string;
   isPermanentlyBanned?: boolean;
+
+  // Gamification & Reliability
+  completedTasks?: number;
+  acceptedTasks?: number;
+  cancelledTasks?: number;
+  lateTasks?: number;
+  averageRating?: number;
+  accuracyScore?: number;
+  level?: 'ELITE' | 'GOOD' | 'AVERAGE' | 'POOR' | 'NEW';
 }
 
 interface AuthContextType {
@@ -119,6 +128,13 @@ async function upsertUserProfile(firebaseUser: FirebaseUser): Promise<UserProfil
       isVerifiedCarrier: false,
       createdAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),
+      // Init gamification
+      completedTasks: 0,
+      acceptedTasks: 0,
+      cancelledTasks: 0,
+      lateTasks: 0,
+      accuracyScore: 0,
+      level: 'NEW',
     };
     await setDoc(docRef, newProfile);
     return newProfile;

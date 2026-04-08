@@ -18,6 +18,47 @@ import { TaskCard, TaskData } from '@/components/task-card';
 import { updateDoc } from 'firebase/firestore';
 import { leaveTaskQueue, dropTaskAndPromoteQueue } from '@/lib/services/queue-service';
 import { toggleSaveTask, toggleFollowTask } from '@/lib/services/interaction-service';
+import type { UserProfile } from '@/lib/auth-context';
+
+// ─── Gamification Config ─────────────────────────────────────────
+// ─── Gamification Config ─────────────────────────────────────────
+export function getTrustScoreConfig(profile: UserProfile | null) {
+  const isNew = !profile || (profile.acceptedTasks || 0) === 0;
+  const isAdmin = profile?.role === 'admin';
+  
+  if (isNew) {
+    return {
+      level: 'NEW',
+      score: 0,
+      // Instead of gray, a rich starting Galaxy vibe!
+      gradient: 'from-violet-600 via-indigo-600 to-blue-600',
+      badgeClass: isAdmin ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200',
+      label: 'New User',
+      icon: User
+    };
+  }
+
+  // Always strictly compute from metrics to maintain consistency
+  const accepted = profile.acceptedTasks || 1;
+  const completed = profile.completedTasks || 0;
+  const cancelled = profile.cancelledTasks || 0;
+  const late = profile.lateTasks || 0;
+  
+  let rawScore = (completed / accepted) * 100;
+  rawScore -= (cancelled * 10); // Penalty
+  rawScore -= (late * 5);       // Penalty
+  const score = Math.max(0, Math.min(100, Math.round(rawScore)));
+
+  if (score >= 90) {
+    return { level: 'ELITE', score, gradient: 'from-emerald-400 via-teal-500 to-emerald-600', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Elite Carrier', icon: Zap };
+  } else if (score >= 75) {
+    return { level: 'GOOD', score, gradient: 'from-cyan-500 via-blue-500 to-indigo-600', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Good Performer', icon: CheckCircle };
+  } else if (score >= 50) {
+    return { level: 'AVERAGE', score, gradient: 'from-orange-400 via-amber-500 to-yellow-500', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Average', icon: Clock };
+  } else {
+    return { level: 'POOR', score, gradient: 'from-rose-500 via-red-500 to-red-700', badgeClass: 'bg-red-50 text-red-700 border-red-200', label: 'Poor Reliability', icon: Shield };
+  }
+}
 
 // ─── Types ───────────────────────────────────────────────────────
 type ProfileTab = 'tasks' | 'bids' | 'queue' | 'saved' | 'following';
@@ -183,6 +224,21 @@ export default function ProfilePage() {
     fetchCounts();
   }, [user]);
 
+  // ─── Gamification & Stage DB Sync ──────────────────────────────
+  useEffect(() => {
+    if (!user || !profile) return;
+    
+    const correctConfig = getTrustScoreConfig(profile);
+    
+    // If the Firestore profile is out of sync with mathematically computed stage, fix it!
+    if (profile.level !== correctConfig.level || profile.accuracyScore !== correctConfig.score) {
+      updateDoc(doc(db, 'users', user.uid), {
+        level: correctConfig.level,
+        accuracyScore: correctConfig.score
+      }).catch(console.error);
+    }
+  }, [user, profile]);
+
   // ─── Stats ─────────────────────────────────────────────────────
   const stats = useMemo(() => [
     { label: 'Tasks', value: Math.max(myTasks.length, eagerStats.tasks), icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -263,19 +319,33 @@ export default function ProfilePage() {
 
   const verificationStatus = profile?.verification?.status;
   const isVerified = profile?.isVerifiedCarrier === true;
-
   const currentTabConfig = TABS.find(t => t.key === activeTab)!;
+  const trustConfig = getTrustScoreConfig(profile);
 
   return (
     <div className="max-w-4xl mx-auto px-4 pt-24 pb-24 lg:pt-32 lg:pb-12">
       {/* ═══ REIMAGINED PROFILE HEADER ═══ */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-xl border border-white mb-6">
+        className={`relative overflow-hidden bg-white/80 backdrop-blur-xl rounded-[2.5rem] mb-6 transition-all duration-500 ${
+          profile?.role === 'admin' 
+            ? 'border-[3px] border-amber-400 shadow-[0_0_40px_-5px_rgba(251,191,36,0.6),inset_0_0_20px_rgba(251,191,36,0.2)]' 
+            : 'border border-white shadow-xl'
+        }`}>
         
-        {/* Abstract Cover Graphic */}
-        <div className="h-36 sm:h-48 bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-500 relative">
-          <div className="absolute inset-0 bg-black/10" />
-          <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+        {/* Abstract Cover Graphic - Smooth Color Transition! */}
+        <div className={`h-36 sm:h-48 bg-gradient-to-br ${trustConfig.gradient} relative transition-colors duration-1000 ease-out overflow-hidden`}>
+          <div className="absolute inset-0 bg-black/5 mix-blend-overlay" />
+          <div className="absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+          
+          {/* Verified Special Glow & Pattern */}
+          {isVerified && (
+            <>
+              {/* Premium Gold Dodge effect */}
+              <div className="absolute inset-0 opacity-50 mix-blend-color-dodge bg-gradient-to-tr from-amber-400/80 via-transparent to-yellow-200/80" />
+              {/* Animated Light Sweep */}
+              <div className="absolute inset-0 w-[200%] h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-[150%] animate-[shimmer_4s_ease-in-out_infinite]" />
+            </>
+          )}
           
           <div className="absolute top-4 right-4 flex gap-2 z-20">
             {profile?.role === 'admin' && (
@@ -295,14 +365,14 @@ export default function ProfilePage() {
             <div className="relative z-10 group">
               <div className="absolute -inset-2 bg-gradient-to-b from-white/30 to-white/0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
               {user.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || 'Profile'} className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] object-cover shadow-2xl border-4 border-white bg-white z-10" referrerPolicy="no-referrer" />
+                <img src={user.photoURL} alt={user.displayName || 'Profile'} className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] object-cover shadow-2xl border-4 bg-white z-10 ${profile?.role === 'admin' ? 'border-amber-400' : 'border-white'}`} referrerPolicy="no-referrer" />
               ) : (
-                <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-4 border-white shadow-2xl flex items-center justify-center text-white text-5xl font-black z-10">
+                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-4 shadow-2xl flex items-center justify-center text-white text-5xl font-black z-10 ${profile?.role === 'admin' ? 'border-amber-400' : 'border-white'}`}>
                   {(user.displayName || user.email || 'U')[0].toUpperCase()}
                 </div>
               )}
               {isVerified && (
-                <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center shadow-lg z-20 tooltip" title="Verified Carrier">
+                <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.6)] z-20 tooltip" title="Verified Carrier">
                   <svg className="w-5 h-5 text-white drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 </div>
               )}
@@ -313,10 +383,18 @@ export default function ProfilePage() {
               <h1 className="text-3xl sm:text-4xl font-heading font-black text-slate-900 tracking-tight leading-none mb-2">
                 {user.displayName || 'Anonymous User'}
               </h1>
-              <div className="flex items-center justify-center sm:justify-start gap-3 mt-1.5 text-slate-500 font-medium text-sm">
+              
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mt-2 text-slate-500 font-medium text-sm">
+                {/* Email Chip */}
                 <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
                   <Mail className="w-3.5 h-3.5" />
                   <span>{user.email}</span>
+                </div>
+
+                {/* Trust Score Badge */}
+                <div title={trustConfig.score !== undefined ? `Accuracy Score: ${trustConfig.score}%` : 'No task history yet'} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-bold capitalize shadow-sm transition-all ${trustConfig.badgeClass}`}>
+                  <trustConfig.icon className="w-3.5 h-3.5" />
+                  <span>{trustConfig.label}</span>
                 </div>
               </div>
               

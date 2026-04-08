@@ -160,7 +160,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               // ═══ PHASE 2: Register SW with version-based cache-busting ═══
               function registerSW() {
-                var swUrl = '/sw.js?v=' + APP_VERSION;
+                var swUrl = '/sw.js';
                 navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' })
                   .then(function(registration) {
                     console.log('[SW] Registered:', registration.scope);
