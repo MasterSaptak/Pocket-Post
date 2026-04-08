@@ -18,18 +18,16 @@ service cloud.firestore {
       return /databases/$(database)/documents/users/$(request.auth.uid);
     }
 
+    function getUserRole() {
+      return exists(userDoc()) ? get(userDoc()).data.get('role', 'user') : 'user';
+    }
+
     function isAdmin() {
-      return isAuthenticated() && (
-        (request.auth.token.email == "BUrningSOUlofDarkness@gmail.com" && request.auth.token.email_verified == true) ||
-        (exists(userDoc()) && get(userDoc()).data.get('role', 'user') == 'admin')
-      );
+      return isAuthenticated() && getUserRole() == 'admin';
     }
 
     function isModeratorOrAdmin() {
-      return isAuthenticated() && (
-        isAdmin() ||
-        (exists(userDoc()) && get(userDoc()).data.get('role', 'user') == 'moderator')
-      );
+      return isAuthenticated() && getUserRole() in ['admin', 'moderator'];
     }
 
     function isVerifiedCarrier() {
@@ -58,7 +56,43 @@ service cloud.firestore {
              (!('isPermanentlyBanned' in data) || data.isPermanentlyBanned is bool);
     }
 
-    function isValidTask(data) {
+    // Task creation validation — counters must start at 0
+    function isValidTaskCreate(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.description is string && data.description.size() > 0 &&
+             data.createdBy is string && data.createdBy.size() > 0 &&
+             data.status in ['pending', 'open', 'rejected', 'assigned', 'in_progress', 'completed', 'cancelled', 'expired'] &&
+             data.reactionCount is number && data.reactionCount == 0 &&
+             data.createdAt is timestamp &&
+             (!('isEmergency' in data) || data.isEmergency is bool) &&
+             (!('isPinned' in data) || data.isPinned is bool) &&
+             (!('isHidden' in data) || data.isHidden is bool) &&
+             (!('isDeleted' in data) || data.isDeleted is bool) &&
+             (!('bounty' in data) || data.bounty is number) &&
+             (!('priorityLevel' in data) || data.priorityLevel in ['standard', 'priority', 'urgent', 'critical']) &&
+             (!('parcelType' in data) || data.parcelType in ['document', 'fragile', 'food', 'other']) &&
+             (!('weight' in data) || data.weight is number) &&
+             (!('bidsCount' in data) || (data.bidsCount is number && data.bidsCount == 0)) &&
+             (!('followsCount' in data) || (data.followsCount is number && data.followsCount == 0)) &&
+             (!('viewsCount' in data) || (data.viewsCount is number && data.viewsCount == 0)) &&
+             (!('queueCount' in data) || (data.queueCount is number && data.queueCount == 0)) &&
+             (!('deadline' in data) || data.deadline == null || data.deadline is timestamp) &&
+             (!('locationCoords' in data) || data.locationCoords == null || (data.locationCoords.lat is number && data.locationCoords.lng is number)) &&
+             (!('pickupLocation' in data) || data.pickupLocation is string) &&
+             (!('dropoffLocation' in data) || data.dropoffLocation is string) &&
+             (!('pickupTime' in data) || data.pickupTime == null || data.pickupTime is timestamp) &&
+             (!('dropoffTime' in data) || data.dropoffTime == null || data.dropoffTime is timestamp) &&
+             (!('currency' in data) || data.currency in ['INR', 'BDT', 'USD', 'EUR', 'GBP']) &&
+             (!('size' in data) || data.size in ['small', 'medium', 'large']) &&
+             (!('pricingType' in data) || data.pricingType in ['fixed', 'bidding']) &&
+             (!('isFragile' in data) || data.isFragile is bool) &&
+             (!('isBoosted' in data) || data.isBoosted is bool) &&
+             (!('assignedTo' in data) || data.assignedTo == null || data.assignedTo is string) &&
+             (!('imageUrl' in data) || data.imageUrl is string || data.imageUrl == null);
+    }
+
+    // Task update validation — counters allowed to be >= 0 (they grow over time)
+    function isValidTaskData(data) {
       return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.description is string && data.description.size() > 0 &&
              data.createdBy is string && data.createdBy.size() > 0 &&
@@ -73,10 +107,10 @@ service cloud.firestore {
              (!('priorityLevel' in data) || data.priorityLevel in ['standard', 'priority', 'urgent', 'critical']) &&
              (!('parcelType' in data) || data.parcelType in ['document', 'fragile', 'food', 'other']) &&
              (!('weight' in data) || data.weight is number) &&
-             (!('bidsCount' in data) || data.bidsCount == 0) &&
-             (!('followsCount' in data) || data.followsCount == 0) &&
-             (!('viewsCount' in data) || data.viewsCount == 0) &&
-             (!('queueCount' in data) || data.queueCount == 0) &&
+             (!('bidsCount' in data) || (data.bidsCount is number && data.bidsCount >= 0)) &&
+             (!('followsCount' in data) || (data.followsCount is number && data.followsCount >= 0)) &&
+             (!('viewsCount' in data) || (data.viewsCount is number && data.viewsCount >= 0)) &&
+             (!('queueCount' in data) || (data.queueCount is number && data.queueCount >= 0)) &&
              (!('deadline' in data) || data.deadline == null || data.deadline is timestamp) &&
              (!('locationCoords' in data) || data.locationCoords == null || (data.locationCoords.lat is number && data.locationCoords.lng is number)) &&
              (!('pickupLocation' in data) || data.pickupLocation is string) &&
@@ -103,7 +137,7 @@ service cloud.firestore {
       return data.taskId is string && data.taskId.size() > 0 &&
              data.userId is string && data.userId.size() > 0 &&
              data.status in ['waiting', 'promoted', 'cancelled'] &&
-             data.position is number &&
+             data.position is number && data.position >= 1 &&
              data.createdAt is timestamp;
     }
 
@@ -116,7 +150,7 @@ service cloud.firestore {
     }
 
     // ===============================================================
-    // Rules — SECURITY LAYER ONLY (logic lives in backend)
+    // Rules — SECURITY LAYER ONLY (logic lives in frontend services)
     // ===============================================================
     
     // ─── Users ─────────────────────────────────────────────────
@@ -124,12 +158,17 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) &&
+                    request.resource.data.uid == request.auth.uid &&
                     ((request.resource.data.get('role', 'user') != 'admin' && request.resource.data.get('role', 'user') != 'moderator') || isAdmin());
                     
       allow update: if isAuthenticated() && (
+                      // Owner self-update: cannot touch protected fields
                       (isOwner(userId) && !isBanned() &&
                        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'role', 'isVerifiedCarrier', 'createdAt', 'bannedUntil', 'isPermanentlyBanned'])) ||
-                      isAdmin() || (isModeratorOrAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid', 'createdAt']))
+                      // Admin: full control
+                      isAdmin() ||
+                      // Moderator: limited control (cannot change role, uid, or createdAt)
+                      (isModeratorOrAdmin() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid', 'createdAt']))
                     );
     }
 
@@ -141,32 +180,49 @@ service cloud.firestore {
                     (resource.data.get('isHidden', false) == false && resource.data.get('isDeleted', false) == false)
                   );
       
+      // Create: must use creation validator (counters == 0), user claims ownership, status starts as pending
       allow create: if isAuthenticated() && !isBanned() &&
-                    isValidTask(request.resource.data) &&
+                    isValidTaskCreate(request.resource.data) &&
                     request.resource.data.createdBy == request.auth.uid &&
-                    (request.resource.data.status == 'pending' || isModeratorOrAdmin()) &&
-                    request.resource.data.reactionCount == 0;
+                    (request.resource.data.status == 'pending' || isModeratorOrAdmin());
                     
-      // Users can ONLY increment reactionCount by exactly +1
-      // ALL other stat updates (followsCount, queueCount, viewsCount) go through transactions
-      allow update: if isAuthenticated() && !isBanned() && (
-                      // Like: any user can +1 reaction
+      // Update: strict field-level control
+      allow update: if isAuthenticated() && !isBanned() && isValidTaskData(request.resource.data) && (
+                      // Like: any authenticated user can +1 reaction (single field only)
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionCount']) &&
                        request.resource.data.reactionCount == resource.data.reactionCount + 1) ||
-                      // Follow count updates via transactions (increment or decrement by 1)
+
+                      // Follow count: transaction-based increment/decrement by exactly 1
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followsCount']) &&
+                       request.resource.data.followsCount is number &&
                        (request.resource.data.followsCount == resource.data.get('followsCount', 0) + 1 ||
                         request.resource.data.followsCount == resource.data.get('followsCount', 0) - 1)) ||
-                      // Queue count updates via transactions (increment or decrement by 1)
+
+                      // Queue count: transaction-based increment/decrement by exactly 1
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['queueCount']) &&
+                       request.resource.data.queueCount is number &&
                        (request.resource.data.queueCount == resource.data.get('queueCount', 0) + 1 ||
                         request.resource.data.queueCount == resource.data.get('queueCount', 0) - 1)) ||
-                      // Owner edits (cannot touch protected fields)
+
+                      // Owner edits: cannot touch any protected/computed fields
                       (resource.data.createdBy == request.auth.uid && 
                        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                         'status', 'createdBy', 'reactionCount', 'isPinned', 'isEmergency',
-                         'bidsCount', 'viewsCount', 'followsCount', 'queueCount', 'assignedTo', 'isHidden'
+                         'status', 'createdBy', 'createdAt', 'reactionCount', 'isPinned', 'isEmergency',
+                         'bidsCount', 'viewsCount', 'followsCount', 'queueCount', 'assignedTo',
+                         'assignedToUser', 'assignedAt', 'isHidden', 'isDeleted'
                        ])) ||
+
+                      // Assignee drop/promote flow:
+                      // Current carrier promotes next in queue or reverts to open.
+                      // Enforce EXACT fields required for state transition.
+                      (resource.data.assignedTo == request.auth.uid &&
+                       (
+                         // Drop and Promote case
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedTo', 'assignedToUser', 'assignedAt', 'queueCount']) ||
+                         // Drop to Open case (no one in queue)
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'assignedTo', 'assignedToUser', 'assignedAt'])
+                       )) ||
+
                       // Admin/Mod: full control
                       isModeratorOrAdmin()
                     );
@@ -175,6 +231,7 @@ service cloud.firestore {
     }
 
     // ─── Applications (Bids) ────────────────────────────────────
+    // Document ID format: ${taskId}_${userId} (deterministic, prevents duplicates)
     match /applications/{applicationId} {
       // Applicant sees their own bids + task owner sees bids on their tasks + admins see all
       allow read: if isAuthenticated() && (
@@ -184,36 +241,69 @@ service cloud.firestore {
                     isModeratorOrAdmin()
                    );
                    
+      // Create: verified carrier only, must own the application, task must exist and be open
       allow create: if isAuthenticated() && !isBanned() &&
                     isVerifiedCarrier() &&
                     isValidApplication(request.resource.data) &&
                     request.resource.data.userId == request.auth.uid &&
-                    request.resource.data.status == 'pending';
+                    request.resource.data.status == 'pending' &&
+                    // Enforce deterministic document ID
+                    applicationId == request.resource.data.taskId + '_' + request.auth.uid &&
+                    // Task must exist, be open, and NOT be deleted
+                    exists(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)) &&
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.status == 'open' &&
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.get('isDeleted', false) == false;
                     
-      allow update: if isAuthenticated() && !isBanned() && isValidApplication(request.resource.data) && (
+      allow update: if isAuthenticated() && !isBanned() && (
                       isModeratorOrAdmin() || 
-                      (resource.data.userId == request.auth.uid && request.resource.data.status == 'cancelled' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+                      // User can only cancel their own application
+                      (resource.data.userId == request.auth.uid &&
+                       request.resource.data.status == 'cancelled' &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
                     );
     }
 
     // ─── Queue System ──────────────────────────────────────────
+    // Document ID format: ${taskId}_${userId} (deterministic, prevents duplicates)
     match /queue/{queueId} {
       // Users can read their own entries + admins read all
+      // Also allow admins to read queue entries for mission promotion logic
       allow read: if isAuthenticated() && (
                     resource.data.userId == request.auth.uid || 
-                    isModeratorOrAdmin()
+                    isModeratorOrAdmin() ||
+                    (exists(/databases/$(database)/documents/tasks/$(resource.data.taskId)) &&
+                     get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid)
                   );
+
+      // Create: enforce deterministic document ID = taskId_userId to prevent duplicates
       allow create: if isAuthenticated() && !isBanned() &&
                     isVerifiedCarrier() &&
                     isValidQueue(request.resource.data) &&
                     request.resource.data.userId == request.auth.uid &&
                     request.resource.data.status == 'waiting' &&
-                    // ENFORCE: task must exist and be assigned
+                    // Enforce deterministic document ID format
+                    queueId == request.resource.data.taskId + '_' + request.auth.uid &&
+                    // Task must exist, be assigned, and NOT be deleted
                     exists(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)) &&
-                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.status == 'assigned';
-      allow update: if isAuthenticated() && !isBanned() && isValidQueue(request.resource.data) && (
-                      isModeratorOrAdmin() || 
-                      (resource.data.userId == request.auth.uid && request.resource.data.status == 'cancelled' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.status == 'assigned' &&
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.get('isDeleted', false) == false &&
+                    // Cannot join queue for a task you are assigned to
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.assignedTo != request.auth.uid;
+
+      allow update: if isAuthenticated() && !isBanned() && (
+                      isModeratorOrAdmin() ||
+                      // User can cancel their own queue entry (cancel sends status + updatedAt)
+                      (resource.data.userId == request.auth.uid &&
+                       resource.data.status == 'waiting' &&
+                       request.resource.data.status == 'cancelled' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+                      // Current task assignee can promote queue entries (drop/promote flow)
+                      (exists(/databases/$(database)/documents/tasks/$(resource.data.taskId)) &&
+                       get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedTo == request.auth.uid &&
+                       resource.data.status == 'waiting' &&
+                       request.resource.data.status == 'promoted' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'promotedAt']))
                     );
     }
 
@@ -223,29 +313,50 @@ service cloud.firestore {
                     resource.data.requestedBy == request.auth.uid ||
                     isModeratorOrAdmin()
                   );
-      allow create: if isAuthenticated() && !isBanned() && isValidReassignRequest(request.resource.data) && request.resource.data.requestedBy == request.auth.uid;
+      allow create: if isAuthenticated() && !isBanned() &&
+                    isValidReassignRequest(request.resource.data) &&
+                    request.resource.data.requestedBy == request.auth.uid &&
+                    request.resource.data.status == 'pending';
       allow update: if isAuthenticated() && isModeratorOrAdmin();
     }
 
     // ─── Follows ───────────────────────────────────────────────
+    // Document ID format: ${taskId}_${userId} (deterministic, prevents duplicates)
     match /follows/{followId} {
       // User reads own follow docs (queries filter by userId == uid)
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
       allow create: if isAuthenticated() && !isBanned() &&
                     request.resource.data.userId == request.auth.uid &&
                     request.resource.data.taskId is string &&
-                    request.resource.data.taskId.size() > 0;
+                    request.resource.data.taskId.size() > 0 &&
+                    request.resource.data.createdAt is timestamp &&
+                    // Enforce deterministic document ID
+                    followId == request.resource.data.taskId + '_' + request.auth.uid &&
+                    // Task must exist and NOT be deleted
+                    exists(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)) &&
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.get('isDeleted', false) == false;
+
       allow delete: if isAuthenticated() && !isBanned() && resource.data.userId == request.auth.uid;
     }
 
     // ─── Saved Tasks ───────────────────────────────────────────
+    // Document ID format: ${taskId}_${userId} (deterministic, prevents duplicates)
     match /savedTasks/{saveId} {
       // User reads own saves only (queries filter by userId == uid)
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated() &&
+
+      allow create: if isAuthenticated() && !isBanned() &&
                     request.resource.data.userId == request.auth.uid &&
                     request.resource.data.taskId is string &&
-                    request.resource.data.taskId.size() > 0;
+                    request.resource.data.taskId.size() > 0 &&
+                    request.resource.data.createdAt is timestamp &&
+                    // Enforce deterministic document ID
+                    saveId == request.resource.data.taskId + '_' + request.auth.uid &&
+                    // Task must exist and NOT be deleted
+                    exists(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)) &&
+                    get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.get('isDeleted', false) == false;
+
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }

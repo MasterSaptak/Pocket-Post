@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, useInView } from 'motion/react';
+import { motion, useInView, AnimatePresence } from 'motion/react';
 import { useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Footer } from '@/components/footer';
 import {
   Shield, Package, CheckCircle, Truck, ArrowRight,
   Lock, Zap, DollarSign, Eye, Users, Clock,
-  FileText, MapPin, UserCheck, ShieldCheck,
+  FileText, MapPin, UserCheck, ShieldCheck, CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -220,7 +220,7 @@ export default function Home() {
                     return (
                       <div key={step.id} className="flex items-center gap-4 sm:gap-5 relative">
                         {index !== steps.length - 1 && (
-                          <div className="absolute left-[1.375rem] top-11 bottom-[-1.5rem] w-0.5 sm:w-1 sm:left-[1.375rem] bg-slate-100 rounded-full">
+                          <div className="absolute left-[1.375rem] sm:left-6 top-11 bottom-[-1.5rem] w-0.5 sm:w-1 bg-slate-100 rounded-full">
                             <motion.div
                               className="w-full bg-blue-500 origin-top rounded-full"
                               initial={{ scaleY: 0 }}
@@ -241,15 +241,42 @@ export default function Home() {
                         </motion.div>
 
                         <div className={`flex-1 transition-all duration-500 w-full ${isActive || isPast ? 'opacity-100 translate-x-0' : 'opacity-40 -translate-x-2'}`}>
-                          <div className={`py-3 sm:py-4 px-4 sm:px-5 rounded-2xl flex items-center justify-between border ${isActive || isPast ? 'bg-white shadow-sm border-slate-100' : 'bg-transparent border-transparent'}`}>
-                            <span className={`font-bold text-sm sm:text-base ${isActive ? 'text-blue-900' : 'text-slate-700'}`}>{step.label}</span>
-                            {isActive && (
+                          <div className={`relative py-3 sm:py-4 px-4 sm:px-5 rounded-2xl flex items-center justify-between border transition-all duration-500 ${
+                            isActive 
+                              ? 'bg-white shadow-lg shadow-blue-500/10 border-blue-100 scale-[1.02]' 
+                              : isPast 
+                                ? 'bg-white shadow-sm border-slate-100' 
+                                : 'bg-transparent border-transparent'
+                          }`}>
+                            <span className={`font-bold text-sm sm:text-base transition-colors duration-500 ${isActive ? 'text-blue-600' : 'text-slate-700'}`}>{step.label}</span>
+                            
+                            <AnimatePresence>
+                              {isActive && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0 }}
+                                  className="flex items-center gap-2"
+                                >
+                                  <motion.div
+                                    className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+                                    animate={{ 
+                                      opacity: [1, 0.4, 1],
+                                      scale: [1, 1.3, 1]
+                                    }}
+                                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                  />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {isPast && (
                               <motion.div
-                                layoutId="active-badge"
-                                className="w-2.5 h-2.5 rounded-full bg-blue-500 absolute right-3"
-                                animate={{ opacity: [1, 0.5, 1], scale: [1, 1.2, 1] }}
-                                transition={{ repeat: Infinity, duration: 1.5 }}
-                              />
+                                initial={{ opacity: 0, scale: 0.5 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              </motion.div>
                             )}
                           </div>
                         </div>

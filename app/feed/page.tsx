@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, memo, useEffect, useRef } from 'react';
-import { collection, addDoc, getDocs, query, where, serverTimestamp, doc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, setDoc, query, where, serverTimestamp, doc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/auth-context';
 import { useDataCache } from '@/lib/data-cache';
@@ -270,7 +270,8 @@ export default function FeedPage() {
     try {
       const existing = await getDocs(query(collection(db, 'applications'), where('taskId', '==', taskId), where('userId', '==', user.uid)));
       if (!existing.empty) { toast.error('Already applied.'); setAppliedIds(p => new Set(p).add(taskId)); return; }
-      await addDoc(collection(db, 'applications'), { taskId, userId: user.uid, status: 'pending', createdAt: serverTimestamp() });
+      const applicationRef = doc(db, 'applications', `${taskId}_${user.uid}`);
+      await setDoc(applicationRef, { taskId, userId: user.uid, status: 'pending', createdAt: serverTimestamp() });
       setAppliedIds(p => new Set(p).add(taskId));
       toast.success('Bid submitted! Awaiting approval. 📡');
     } catch (e) { toast.error('Error submitting bid.'); } finally { setApplyingId(null); }
@@ -328,6 +329,7 @@ export default function FeedPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 pt-24 pb-8 lg:pt-28 lg:pb-12">
+      <h1 className="sr-only">PocketPost Marketplace - Live Tasks and Delivery Opportunities</h1>
 
       {/* ══════════ ACTIVITY STRIP ══════════ */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}

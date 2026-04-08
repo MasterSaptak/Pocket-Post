@@ -18,20 +18,36 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://pocketpost.saptech.online'),
-  title: 'PocketPost | For What\'s Needed.',
-  description: 'Post tasks, discover opportunities, and connect with verified carriers rapidly.',
+  title: {
+    default: 'PocketPost | Trusted Task Marketplace & Global Delivery',
+    template: '%s | PocketPost'
+  },
+  description: 'PocketPost connects you with verified carriers for rapid task completion and global peer-to-peer delivery. Save up to 70% on cross-border shipping while maintaining total privacy.',
+  keywords: ['task marketplace', 'peer to peer delivery', 'courier service', 'verified carriers', 'safe delivery', 'global shipping', 'PocketPost'],
   manifest: '/manifest.json',
+  authors: [{ name: 'PocketPost Team' }],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
-    title: 'PocketPost | For What\'s Needed.',
-    description: 'Post tasks, discover opportunities, and connect with verified carriers rapidly.',
+    title: 'PocketPost | Trusted Task Marketplace & Global Delivery',
+    description: 'Post tasks, discover opportunities, and connect with verified carriers rapidly. Join the first peer-to-peer delivery network.',
     url: 'https://pocketpost.saptech.online',
     siteName: 'PocketPost',
     images: [
       {
-        url: '/LOGO.png',
-        width: 800,
-        height: 800,
-        alt: 'PocketPost Thumbnail',
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'PocketPost - Trusted Task Marketplace',
       },
     ],
     locale: 'en_US',
@@ -39,18 +55,27 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PocketPost | For What\'s Needed.',
-    description: 'Post tasks, discover opportunities, and connect with verified carriers rapidly.',
-    images: ['/LOGO.png'],
+    title: 'PocketPost | Trusted Task Marketplace & Global Delivery',
+    description: 'The fastest, most secure way to get things delivered globally through a trusted network of carriers.',
+    images: ['/twitter-image.png'],
+    creator: '@pocketpost',
+  },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/apple-touch-icon.png',
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0F172A',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0F172A' },
+  ],
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
