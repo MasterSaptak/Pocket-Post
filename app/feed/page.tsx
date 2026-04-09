@@ -14,6 +14,7 @@ import {
   TrendingUp, DollarSign, Star, Timer, X, Weight, Calendar, Plus,
   Bookmark, BarChart3, Activity, Flame, Eye, Users, FileText
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { joinTaskQueue, leaveTaskQueue, dropTaskAndPromoteQueue } from '@/lib/services/queue-service';
 import { toggleSaveTask, toggleFollowTask } from '@/lib/services/interaction-service';
@@ -117,7 +118,8 @@ const TaskList = memo(function TaskList({ tasks, showApply, showFollow, onLike, 
 // ═════════════════════════════════════════════════════════════════
 export default function FeedPage() {
   const { user, profile } = useAuth();
-  const { feedTasks, feedLoading, feedHasMore, loadMoreTasks, refreshFeed } = useDataCache();
+  const router = useRouter();
+  const { feedTasks, pinnedTasks, feedLoading, feedHasMore, loadMoreTasks, refreshFeed } = useDataCache();
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [loadingMore, setLoadingMore] = useState(false);
@@ -191,16 +193,6 @@ export default function FeedPage() {
     return { totalBounty, urgentCount, todayCount, totalTasks: feedTasks.length };
   }, [feedTasks]);
 
-  const hotOpportunities = useMemo(() => {
-    return [...feedTasks]
-      .filter(t => t.isPinned)
-      .map(t => ({ ...t, score: (t.bounty || 0) * 2 + (t.bidsCount || 0) * 10 + (t.followsCount || 0) * 5 +
-        ((t.priorityLevel === 'critical' || t.isEmergency) ? 500 : t.priorityLevel === 'urgent' ? 200 : 0)
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8); // Showing up to 8 pinned tasks in the carousel
-  }, [feedTasks]);
-
   const activeFilterCount = useMemo(() => {
     let c = 0;
     if (filters.bountyMin > 0 || filters.bountyMax < 100000) c++;
@@ -242,6 +234,22 @@ export default function FeedPage() {
     // Sort (for_you and tabs that don't override)
     if (activeTab === 'for_you' || activeTab === 'nearby') {
       return [...filtered].sort((a, b) => {
+        // --- COMMAND PRIORITY HIERARCHY ---
+        // 1. Emergency/Critical first
+        const isAHero = a.isEmergency || a.priorityLevel === 'critical';
+        const isBHero = b.isEmergency || b.priorityLevel === 'critical';
+        if (isAHero && !isBHero) return -1;
+        if (!isAHero && isBHero) return 1;
+
+        // 2. Pinned tasks
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+
+        // 3. Urgent tasks
+        if (a.priorityLevel === 'urgent' && b.priorityLevel !== 'urgent') return -1;
+        if (a.priorityLevel !== 'urgent' && b.priorityLevel === 'urgent') return 1;
+
+        // 4. Default Feed Sort Logic
         const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
         const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
         switch (feedSort) {
@@ -305,8 +313,26 @@ export default function FeedPage() {
       const res = await toggleFollowTask(task.id, user.uid);
       if (res.success) toast.success(res.message);
       else toast.error(res.message);
+    } else if (action === 'pin') {
+      try {
+        await updateDoc(doc(db, 'tasks', task.id), { isPinned: !task.isPinned });
+        toast.success(task.isPinned ? 'Task unpinned' : 'Task pinned to Hot Opportunities! 🔥');
+      } catch (e) { toast.error('Failed to update pin status'); }
+    } else if (action === 'emergency') {
+      try {
+        await updateDoc(doc(db, 'tasks', task.id), { isEmergency: !task.isEmergency });
+        toast.success(task.isEmergency ? 'Emergency status removed' : 'Task marked as URGENT! 🚨');
+      } catch (e) { toast.error('Failed to update emergency status'); }
+    } else if (action === 'delete') {
+      if (!confirm('Are you sure you want to hide this task from the feed?')) return;
+      try {
+        await updateDoc(doc(db, 'tasks', task.id), { isDeleted: true });
+        toast.success('Task removed from feed.');
+      } catch (e) { toast.error('Failed to delete task'); }
+    } else if (action === 'edit') {
+      router.push(`/post/edit/${task.id}`);
     }
-  }, [user, isVerifiedCarrier]);
+  }, [user, isVerifiedCarrier, router]);
 
   const handleLoadMore = useCallback(async () => { setLoadingMore(true); await loadMoreTasks(); setLoadingMore(false); }, [loadMoreTasks]);
   const handleRefresh = useCallback(async () => { setRefreshing(true); await refreshFeed(); setRefreshing(false); }, [refreshFeed]);
@@ -462,22 +488,85 @@ export default function FeedPage() {
             </div>
           </div>
 
-          {/* ══════════ HOT OPPORTUNITIES ══════════ */}
-          {hotOpportunities.length > 0 && activeTab === 'for_you' && !searchQuery && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center"><Flame className="w-3.5 h-3.5 text-white" /></span>
-                  Hot Opportunities
-                </h2>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Top picks</span>
+          {/* ══════════ HOT OPPORTUNITIES (FEATURED FOCUS SLOT) ══════════ */}
+          {pinnedTasks.length > 0 && activeTab === 'for_you' && !searchQuery && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-200/50">
+                    <Flame className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-900 tracking-tight leading-none">Featured Operations</h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">High Priority Directives</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-100/50 px-2 py-1 rounded-full border border-slate-200/50">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{pinnedTasks.length} Active</span>
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {hotOpportunities.map((task) => (
-                  <TaskCard key={task.id} task={task} variant="featured" showApplyButton={!!user && isVerifiedCarrier}
-                    showFollowButton={!!user} onLike={handleLike} onApply={handleApply} onAction={handleAction}
-                    isApplying={applyingId === task.id} hasApplied={appliedIds.has(task.id)} />
-                ))}
+
+              {/* Focus Layout: Large Hero for the most important one if it exists, or a nice grid */}
+              <div className="space-y-4">
+                 {pinnedTasks[0] && (pinnedTasks[0].isEmergency || pinnedTasks[0].priorityLevel === 'critical' || pinnedTasks[0].priorityLevel === 'urgent') ? (
+                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      {/* Hero Slot */}
+                      <div className="md:col-span-8">
+                         <TaskCard 
+                           task={pinnedTasks[0]} 
+                           variant="featured" 
+                           showApplyButton={!!user && isVerifiedCarrier}
+                           showFollowButton={!!user} 
+                           onLike={handleLike} 
+                           onApply={handleApply} 
+                           onAction={handleAction}
+                           isApplying={applyingId === pinnedTasks[0].id} 
+                           hasApplied={appliedIds.has(pinnedTasks[0].id)} 
+                         />
+                      </div>
+                      {/* Side Support Slots */}
+                      <div className="md:col-span-4 flex flex-col gap-4">
+                         {pinnedTasks.slice(1, 3).map((task) => (
+                           <div key={task.id} className="h-full scale-95 origin-right">
+                              <TaskCard 
+                                task={task} 
+                                showApplyButton={!!user && isVerifiedCarrier}
+                                showFollowButton={!!user} 
+                                onLike={handleLike} 
+                                onApply={handleApply} 
+                                onAction={handleAction}
+                                isApplying={applyingId === task.id} 
+                                hasApplied={appliedIds.has(task.id)} 
+                              />
+                           </div>
+                         ))}
+                         {pinnedTasks.length <= 1 && (
+                            <div className="h-full rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-6 text-center">
+                               <Plus className="w-8 h-8 text-slate-100 mb-2" />
+                               <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Awaiting Admin Directives</p>
+                            </div>
+                         )}
+                      </div>
+                   </div>
+                 ) : (
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     {pinnedTasks.slice(0, 4).map((task) => (
+                        <TaskCard 
+                          key={task.id} 
+                          task={task} 
+                          variant="featured" 
+                          showApplyButton={!!user && isVerifiedCarrier}
+                          showFollowButton={!!user} 
+                          onLike={handleLike} 
+                          onApply={handleApply} 
+                          onAction={handleAction}
+                          isApplying={applyingId === task.id} 
+                          hasApplied={appliedIds.has(task.id)} 
+                        />
+                      ))}
+                   </div>
+                 )}
               </div>
             </motion.div>
           )}

@@ -28,6 +28,7 @@ interface DataCacheContextType {
   feedHasMore: boolean;
   loadMoreTasks: () => Promise<void>;
   refreshFeed: () => Promise<void>;
+  pinnedTasks: TaskData[];
 
   // Admin data (all tasks, applications, users)
   allTasks: TaskData[];
@@ -46,6 +47,7 @@ const DataCacheContext = createContext<DataCacheContextType>({
   feedHasMore: false,
   loadMoreTasks: async () => {},
   refreshFeed: async () => {},
+  pinnedTasks: [],
   allTasks: [],
   applications: [],
   allUsers: [],
@@ -62,6 +64,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   const [feedTasks, setFeedTasks] = useState<TaskData[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedHasMore, setFeedHasMore] = useState(false);
+  const [pinnedTasks, setPinnedTasks] = useState<TaskData[]>([]);
   const lastDocRef = useRef<QueryDocumentSnapshot<DocumentData> | null>(null);
 
   // Admin state — only subscribed on demand
@@ -144,6 +147,35 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
     await fetchFeedPage(true);
   }, [fetchFeedPage]);
 
+  // ── pinnedTasks: Real-time pulse for featured missions ────────
+  useEffect(() => {
+    // Subscribe to all pinned tasks that are still active/open
+    const q = query(
+      collection(db, 'tasks'),
+      where('isPinned', '==', true),
+      where('isDeleted', '==', false),
+      where('status', 'in', ['open', 'assigned', 'in_progress'])
+    );
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const tasks = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as TaskData[];
+      
+      // Sort pinned missions by emergency status first, then bounty
+      tasks.sort((a, b) => {
+        if (a.isEmergency && !b.isEmergency) return -1;
+        if (!a.isEmergency && b.isEmergency) return 1;
+        return (b.bounty || 0) - (a.bounty || 0);
+      });
+      
+      setPinnedTasks(tasks);
+    });
+
+    return () => unsub();
+  }, []);
+
   // ── Admin: on-demand subscription ─────────────────────────────
   const subscribeToAdminData = useCallback(() => {
     if (isAdminSubscribed) return;
@@ -209,6 +241,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
       feedHasMore,
       loadMoreTasks,
       refreshFeed,
+      pinnedTasks,
       allTasks,
       applications,
       allUsers,
