@@ -5,7 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { getTrustScoreConfig } from '@/lib/gamification';
 import { motion } from 'motion/react';
-import { Loader2, Shield, Mail, BadgeCheck, Zap, Package, Clock, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, Shield, Mail, BadgeCheck, Zap, Package, Clock, CheckCircle, ArrowLeft, Lock } from 'lucide-react';
 import type { UserProfile } from '@/lib/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
       try {
         const snap = await getDoc(doc(db, 'users', resolvedParams.id));
         if (snap.exists()) {
-          setProfile({ id: snap.id, ...snap.data() } as UserProfile);
+          setProfile({ id: snap.id, ...snap.data() } as unknown as UserProfile);
         } else {
           setError('User not found.');
         }
@@ -67,9 +67,11 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
         
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className={`relative overflow-hidden bg-white/80 backdrop-blur-xl rounded-[2.5rem] mb-6 shadow-xl ${
-          profile.role === 'admin' 
-            ? 'border-[3px] border-amber-400 shadow-[0_0_40px_-5px_rgba(251,191,36,0.6),inset_0_0_20px_rgba(251,191,36,0.2)]' 
-            : 'border border-slate-100'
+          profile.role === 'PRIME_ADMIN'
+            ? 'border-[3px] border-amber-400 shadow-[0_0_40px_-5px_rgba(251,191,36,0.6),inset_0_0_20px_rgba(251,191,36,0.2)]'
+            : profile.role === 'admin' 
+              ? 'border-[3px] border-amber-400 shadow-[0_0_40px_-5px_rgba(251,191,36,0.6),inset_0_0_20px_rgba(251,191,36,0.2)]' 
+              : 'border border-slate-100'
         }`}>
         
         {/* Banner */}
@@ -89,11 +91,15 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
           )}
 
           {/* Special Admin Ribbon */}
-          {profile.role === 'admin' && (
+          {profile.role === 'PRIME_ADMIN' ? (
+             <div className="absolute top-4 right-4 bg-amber-500/90 backdrop-blur-md border border-amber-300 px-3 py-1.5 rounded-full flex items-center text-xs font-black text-amber-950 shadow-[0_0_20px_rgba(245,158,11,0.5)] z-10">
+               👑 PRIME ADMIN
+             </div>
+          ) : profile.role === 'admin' ? (
              <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full flex items-center text-xs font-bold text-white shadow-sm z-10">
                <Shield className="w-3.5 h-3.5 mr-1" /> Core Staff
              </div>
-          )}
+          ) : null}
         </div>
 
         <div className="px-6 pb-6 sm:px-10 sm:pb-8 relative">
@@ -101,7 +107,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
             {/* Avatar */}
             <div className="relative z-10 group">
               {profile.displayName || profile.email ? (
-                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-4 shadow-2xl flex items-center justify-center text-white text-5xl font-black z-10 ${profile.role === 'admin' ? 'border-amber-400' : 'border-white'}`}>
+                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-4 shadow-2xl flex items-center justify-center text-white text-5xl font-black z-10 ${profile.role === 'admin' || profile.role === 'PRIME_ADMIN' ? 'border-amber-400' : 'border-white'}`}>
                    {/* In a real app, map photoURL if it exists. Reverting to initial fallback logic. */}
                   {(profile.displayName || profile.email || 'U')[0].toUpperCase()}
                 </div>
@@ -115,9 +121,17 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
 
             {/* Profile Info */}
             <div className="flex-1 text-center sm:text-left pt-2 pb-2">
-              <h1 className="text-3xl sm:text-4xl font-heading font-black text-slate-900 tracking-tight leading-none mb-2">
+              <h1 className="text-3xl sm:text-5xl font-serif italic text-slate-900 tracking-tight leading-none mb-4 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
                 {profile.displayName || 'Anonymous User'}
               </h1>
+              
+              {profile.role === 'PRIME_ADMIN' && (
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#d97706] mb-3 mt-1.5">
+                  <div className="flex items-center gap-1.5 bg-[#fef3c7] px-2 py-1 rounded-md ring-1 ring-[#fde68a]">
+                    <Lock className="w-3 h-3" /> Protected Account
+                  </div>
+                </div>
+              )}
               
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mt-2 text-slate-500 font-medium text-sm">
                 <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
@@ -132,8 +146,14 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
               </div>
               
               <div className="flex items-center justify-center sm:justify-start gap-2 mt-4 flex-wrap">
-                <Badge variant="outline" className="capitalize bg-white shadow-sm border-slate-200">{profile.role || 'User'}</Badge>
-                {isVerified && <Badge variant="approved" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">Verified</Badge>}
+                {profile.role === 'PRIME_ADMIN' ? (
+                  <span className="flex items-center gap-1.5 text-xs bg-slate-900 px-3 py-1.5 rounded-full font-serif tracking-[0.15em] uppercase text-amber-400 shadow-sm border border-amber-600/30">
+                    <Shield className="w-3.5 h-3.5" /> PRIME ADMIN
+                  </span>
+                ) : (
+                  <Badge variant="outline" className="capitalize bg-white shadow-sm border-slate-200">{profile.role || 'User'}</Badge>
+                )}
+                {isVerified && <Badge variant="approved" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">Verified Carrier</Badge>}
               </div>
             </div>
           </div>

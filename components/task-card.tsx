@@ -164,7 +164,8 @@ export const TaskCard = memo(function TaskCard({
   variant = 'default',
 }: TaskCardProps) {
   const { user, profile } = useAuth();
-  const isAdmin = profile?.role === 'admin' || isAdminView;
+  const isStrictAdmin = profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN';
+  const isAdmin = isStrictAdmin || isAdminView;
   
   // Sync core logic with real-time backend updates
   const [liveTask, setLiveTask] = useState<TaskData>(task);
@@ -555,23 +556,27 @@ export const TaskCard = memo(function TaskCard({
                 </Button>
               </>
             )}
-            <Button size="sm" variant="outline" onClick={() => onAction?.('edit', liveTask)} className="px-3">Edit</Button>
-            <Button size="sm" variant="outline" onClick={() => onAction?.('pin', liveTask)}
-              className={`px-3 ${liveTask.isPinned ? 'bg-amber-100 border-amber-300 text-amber-700' : ''}`}
-            >
-              {liveTask.isPinned ? 'Unpin' : 'Pin'}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onAction?.('emergency', liveTask)}
-              className={`px-3 ${liveTask.isEmergency ? 'bg-red-100 border-red-300 text-red-700 pulse-red' : ''}`}
-            >
-              Urgent
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onAction?.('delete', liveTask)}
-              className="px-3 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" title="Delete"
-            >
-              <Trash2 className="w-4 h-4 sm:mr-1" />
-              <span className="hidden sm:inline">Delete</span>
-            </Button>
+            {isStrictAdmin && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => onAction?.('edit', liveTask)} className="px-3">Edit</Button>
+                <Button size="sm" variant="outline" onClick={() => onAction?.('pin', liveTask)}
+                  className={`px-3 ${liveTask.isPinned ? 'bg-amber-100 border-amber-300 text-amber-700' : ''}`}
+                >
+                  {liveTask.isPinned ? 'Unpin' : 'Pin'}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => onAction?.('emergency', liveTask)}
+                  className={`px-3 ${liveTask.isEmergency ? 'bg-red-100 border-red-300 text-red-700 pulse-red' : ''}`}
+                >
+                  Urgent
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => onAction?.('delete', liveTask)}
+                  className="px-3 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" title="Delete"
+                >
+                  <Trash2 className="w-4 h-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Delete</span>
+                </Button>
+              </>
+            )}
           </div>
         )}
         

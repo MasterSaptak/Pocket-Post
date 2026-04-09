@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import {
   LogOut, User, Shield, UserCheck, Package, Mail, Zap, Loader2, CheckCircle,
-  Bookmark, Eye, Users, TrendingUp, ChevronRight, Plus, Clock, MapPin, Star, DollarSign
+  Bookmark, Eye, Users, TrendingUp, ChevronRight, Plus, Clock, MapPin, Star, DollarSign, Lock
 } from 'lucide-react';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -19,7 +19,7 @@ import { updateDoc } from 'firebase/firestore';
 import { leaveTaskQueue, dropTaskAndPromoteQueue } from '@/lib/services/queue-service';
 import { toggleSaveTask, toggleFollowTask } from '@/lib/services/interaction-service';
 import type { UserProfile } from '@/lib/auth-context';
-import { getTrustScoreConfig } from '@/lib/gamification';
+import { getTrustScoreConfig, computeFinalUserProfilePayload } from '@/lib/gamification';
 
 // ─── Types ───────────────────────────────────────────────────────
 type ProfileTab = 'tasks' | 'bids' | 'queue' | 'saved' | 'following';
@@ -185,18 +185,20 @@ export default function ProfilePage() {
     fetchCounts();
   }, [user]);
 
-  // ─── Gamification & Stage DB Sync ──────────────────────────────
+    // ─── Gamification & Stage DB Sync ──────────────────────────────
   useEffect(() => {
     if (!user || !profile) return;
     
-    const correctConfig = getTrustScoreConfig(profile);
+    // Auto-heal local DB flags on load if system math or admin flags updated
+    const correctPayload = computeFinalUserProfilePayload(profile);
     
-    // If the Firestore profile is out of sync with mathematically computed stage, fix it!
-    if (profile.level !== correctConfig.level || profile.accuracyScore !== correctConfig.score) {
-      updateDoc(doc(db, 'users', user.uid), {
-        level: correctConfig.level,
-        accuracyScore: correctConfig.score
-      }).catch(console.error);
+    if (
+      profile.level !== correctPayload.level || 
+      profile.accuracyScore !== correctPayload.accuracyScore ||
+      profile.finalTier !== correctPayload.finalTier ||
+      profile.systemTier !== correctPayload.systemTier
+    ) {
+      updateDoc(doc(db, 'users', user.uid), correctPayload).catch(console.error);
     }
   }, [user, profile]);
 
@@ -288,7 +290,7 @@ export default function ProfilePage() {
       {/* ═══ REIMAGINED PROFILE HEADER ═══ */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className={`relative overflow-hidden bg-white/80 backdrop-blur-xl rounded-[2.5rem] mb-6 transition-all duration-500 ${
-          profile?.role === 'admin' 
+          profile?.role === 'PRIME_ADMIN' || profile?.role === 'admin' 
             ? 'border-[3px] border-amber-400 shadow-[0_0_40px_-5px_rgba(251,191,36,0.6),inset_0_0_20px_rgba(251,191,36,0.2)]' 
             : 'border border-white shadow-xl'
         }`}>
@@ -311,9 +313,9 @@ export default function ProfilePage() {
           )}
           
           <div className="absolute top-4 right-4 flex gap-2 z-20">
-            {profile?.role === 'admin' && (
-              <Button asChild variant="secondary" size="sm" className="rounded-xl bg-black/30 hover:bg-black/40 text-white border border-white/10 backdrop-blur-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all">
-                <Link href="/admin"><Shield className="w-4 h-4 mr-1.5" /> Admin</Link>
+            {(profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN' || profile?.role === 'moderator') && (
+              <Button asChild variant="secondary" size="sm" className="rounded-xl bg-amber-500/90 hover:bg-amber-600 text-amber-950 font-black border border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all">
+                <Link href="/admin"><Shield className="w-4 h-4 mr-1.5" /> Command</Link>
               </Button>
             )}
             <Button variant="secondary" size="sm" onClick={signOut} className="rounded-xl bg-black/30 hover:bg-black/40 text-white border border-white/10 backdrop-blur-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all">
@@ -328,9 +330,9 @@ export default function ProfilePage() {
             <div className="relative z-10 group">
               <div className="absolute -inset-2 bg-gradient-to-b from-white/30 to-white/0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
               {user.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || 'Profile'} className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] object-cover shadow-2xl border-4 bg-white z-10 ${profile?.role === 'admin' ? 'border-amber-400' : 'border-white'}`} referrerPolicy="no-referrer" />
+                <img src={user.photoURL} alt={user.displayName || 'Profile'} className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] object-cover shadow-2xl border-4 bg-white z-10 ${profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN' ? 'border-amber-400' : 'border-white'}`} referrerPolicy="no-referrer" />
               ) : (
-                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-4 shadow-2xl flex items-center justify-center text-white text-5xl font-black z-10 ${profile?.role === 'admin' ? 'border-amber-400' : 'border-white'}`}>
+                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-4 shadow-2xl flex items-center justify-center text-white text-5xl font-black z-10 ${profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN' ? 'border-amber-400' : 'border-white'}`}>
                   {(user.displayName || user.email || 'U')[0].toUpperCase()}
                 </div>
               )}
@@ -343,9 +345,17 @@ export default function ProfilePage() {
 
             {/* Profile Info */}
             <div className="flex-1 text-center sm:text-left pt-2 pb-2">
-              <h1 className="text-3xl sm:text-4xl font-heading font-black text-slate-900 tracking-tight leading-none mb-2">
+              <h1 className="text-3xl sm:text-5xl font-serif italic text-slate-900 tracking-tight leading-none mb-4 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
                 {user.displayName || 'Anonymous User'}
               </h1>
+              
+              {profile?.role === 'PRIME_ADMIN' && (
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#d97706] mb-3 mt-1.5">
+                  <div className="flex items-center gap-1.5 bg-[#fef3c7] px-2 py-1 rounded-md ring-1 ring-[#fde68a]">
+                    <Lock className="w-3 h-3" /> Protected Account
+                  </div>
+                </div>
+              )}
               
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mt-2 text-slate-500 font-medium text-sm">
                 {/* Email Chip */}
@@ -381,7 +391,13 @@ export default function ProfilePage() {
               )}
 
               <div className="flex items-center justify-center sm:justify-start gap-2 mt-4 flex-wrap">
-                <Badge variant="outline" className="capitalize bg-white shadow-sm border-slate-200">{profile?.role || 'User'}</Badge>
+                {profile?.role === 'PRIME_ADMIN' ? (
+                  <span className="flex items-center gap-1.5 text-xs bg-slate-900 px-3 py-1.5 rounded-full font-serif tracking-[0.15em] uppercase text-amber-400 shadow-sm border border-amber-600/30">
+                    <Shield className="w-3.5 h-3.5" /> PRIME ADMIN
+                  </span>
+                ) : (
+                  <Badge variant="outline" className="capitalize bg-white shadow-sm border-slate-200">{profile?.role || 'User'}</Badge>
+                )}
                 {isVerified && <Badge variant="approved" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">Verified Carrier</Badge>}
                 {!isVerified && verificationStatus === 'pending' && <Badge variant="pending" className="font-bold">Review Pending</Badge>}
               </div>

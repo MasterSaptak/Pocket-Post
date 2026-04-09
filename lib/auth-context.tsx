@@ -17,7 +17,7 @@ import { auth, db } from './firebase';
 import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────
-export type UserRole = 'user' | 'moderator' | 'admin';
+export type UserRole = 'user' | 'moderator' | 'admin' | 'PRIME_ADMIN';
 
 export interface UserProfile {
   uid: string;
@@ -25,6 +25,7 @@ export interface UserProfile {
   email: string;
   photoURL: string;
   role: UserRole;
+  isImmutable?: boolean;
   isVerifiedCarrier: boolean;
   verification?: {
     status: 'pending' | 'approved' | 'rejected';
@@ -43,9 +44,26 @@ export interface UserProfile {
   acceptedTasks?: number;
   cancelledTasks?: number;
   lateTasks?: number;
+  lowRatingTasks?: number;
   averageRating?: number;
   accuracyScore?: number;
-  level?: 'ELITE' | 'GOOD' | 'AVERAGE' | 'POOR' | 'NEW';
+  level?: string; // Kept for backwards compatibility 
+  
+  // Reputation & Tier System Data (Source of Truth)
+  adminOverride?: {
+    tier: string;
+    expiresAt: string | null;
+    reason: string;
+  } | null;
+  ban?: {
+    status: 'NONE' | 'TEMP' | 'PERM';
+    expiresAt: string | null;
+    reason: string;
+  } | null;
+  
+  // Cached State Values (Calculated by Cloud Functions, safe to rely on for UI)
+  systemTier?: string;
+  finalTier?: string;
 }
 
 interface AuthContextType {
@@ -133,8 +151,13 @@ async function upsertUserProfile(firebaseUser: FirebaseUser): Promise<UserProfil
       acceptedTasks: 0,
       cancelledTasks: 0,
       lateTasks: 0,
+      lowRatingTasks: 0,
       accuracyScore: 0,
-      level: 'NEW',
+      level: 'NEW_USER',
+      systemTier: 'NEW_USER',
+      finalTier: 'NEW_USER',
+      ban: { status: 'NONE', expiresAt: null, reason: '' },
+      adminOverride: null,
     };
     await setDoc(docRef, newProfile);
     return newProfile;

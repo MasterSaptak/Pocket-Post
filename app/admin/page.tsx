@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, updateDoc, addDoc, collection, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, serverTimestamp, deleteDoc, getDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProtectedRoute } from '@/hooks/use-protected-route';
 import { useDataCache } from '@/lib/data-cache';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard, TaskData } from '@/components/task-card';
+import { UserMatrix } from '@/components/admin/user-matrix';
 import { UserProfile, UserRole } from '@/lib/auth-context';
 import { 
   Shield, Check, Users, Package, Loader2, UserCheck, X, Zap, 
@@ -45,7 +46,7 @@ export default function AdminDashboard() {
   const [taskSubTab, setTaskSubTab] = useState<TaskSubTab>('active');
   const [taskSort, setTaskSort] = useState<TaskSort>('priority');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN';
   const isModerator = profile?.role === 'moderator' || isAdmin;
 
   // Subscribe to admin data on mount
@@ -107,6 +108,10 @@ export default function AdminDashboard() {
         status: 'assigned',
         assignedTo: userId,
       });
+      // Directly increment the carrier's accepted task counter
+      await updateDoc(doc(db, 'users', userId), {
+        acceptedTasks: increment(1)
+      });
       toast.success('Application accepted — task assigned!');
     } catch (error) {
       toast.error('Failed to accept application.');
@@ -124,7 +129,17 @@ export default function AdminDashboard() {
 
   const completeTask = useCallback(async (taskId: string) => {
     try {
+      const taskSnap = await getDoc(doc(db, 'tasks', taskId));
+      const taskData = taskSnap.exists() ? taskSnap.data() : null;
+
       await updateDoc(doc(db, 'tasks', taskId), { status: 'completed' });
+      
+      // Directly increment the carrier's completed task counter if assigned
+      if (taskData?.assignedTo) {
+         await updateDoc(doc(db, 'users', taskData.assignedTo), {
+            completedTasks: increment(1)
+         });
+      }
       toast.success('Task marked as completed!');
     } catch (error) {
       toast.error('Failed to complete task.');
@@ -176,58 +191,6 @@ export default function AdminDashboard() {
       toast.error('Failed to update emergency status.');
     }
   }, []);
-
-  const changeUserRole = useCallback(async (userId: string, targetRole: UserRole) => {
-    if (!isAdmin) return toast.error('Only Prime Admins can change roles.');
-    try {
-      await updateDoc(doc(db, 'users', userId), { role: targetRole });
-      toast.success(`User promoted to ${targetRole}!`);
-    } catch (error) {
-      toast.error('Failed to change role.');
-    }
-  }, [isAdmin]);
-
-  const banUser = useCallback(async (userId: string, durationDays: number | 'perm') => {
-    if (!isAdmin) return toast.error('Moderators cannot perform bans yet.');
-    try {
-      const updates: any = {
-        isPermanentlyBanned: durationDays === 'perm',
-      };
-      if (durationDays !== 'perm') {
-        const bannedUntil = new Date();
-        bannedUntil.setDate(bannedUntil.getDate() + durationDays);
-        updates.bannedUntil = bannedUntil;
-      }
-      await updateDoc(doc(db, 'users', userId), updates);
-      toast.success(durationDays === 'perm' ? 'User PERMANENTLY banned.' : `User banned for ${durationDays} days.`);
-    } catch (error) {
-      toast.error('Failed to ban user.');
-    }
-  }, [isAdmin]);
-
-  const removeUserVerification = useCallback(async (userId: string) => {
-    try {
-      await updateDoc(doc(db, 'users', userId), { 
-        isVerifiedCarrier: false,
-        'verification.status': 'rejected'
-      });
-      toast.success('Verification removed.');
-    } catch (error) {
-      toast.error('Failed to remove verification.');
-    }
-  }, []);
-
-  const deleteUser = useCallback(async (userId: string) => {
-    if (!isAdmin) return toast.error('Only Prime Admins can delete users.');
-    if (!confirm('CRITICAL: Are you sure you want to PERMANENTLY delete this user data? This action cannot be undone.')) return;
-    
-    try {
-      await deleteDoc(doc(db, 'users', userId));
-      toast.success('User record deleted from database.');
-    } catch (error) {
-      toast.error('Failed to delete user record.');
-    }
-  }, [isAdmin]);
 
   // ─── Task Actions Registry ──────────────────────────────────────
   const handleTaskAction = useCallback(async (action: string, task: TaskData) => {
@@ -474,97 +437,12 @@ export default function AdminDashboard() {
 
           {/* 👥 USER CONTROL GRID */}
           {currentTab === 'users' && (
-            <Card className="rounded-3xl border-slate-100 overflow-hidden shadow-xl shadow-slate-100/50">
-              <CardHeader className="bg-slate-50/50 border-b border-slate-100 px-8 py-6">
-                <CardTitle className="text-2xl font-black">User Matrix</CardTitle>
-                <CardDescription>Comprehensive control over all platform operatives.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="border-b border-slate-50 text-[10px] font-black uppercase tracking-[2px] text-slate-400">
-                        <th className="px-8 py-5">Operative</th>
-                        <th className="px-6 py-5">Clearance</th>
-                        <th className="px-6 py-5">Status</th>
-                        <th className="px-8 py-5 text-right">Direct Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {allUsers.map((u: UserProfile) => (
-                        <tr key={u.uid} className="hover:bg-slate-50/50 transition-colors group h-20">
-                          <td className="px-8 py-4 align-middle">
-                            <div className="flex items-center gap-4">
-                              {u.photoURL ? (
-                                <div className="relative">
-                                  <img src={u.photoURL} alt="" className="w-11 h-11 rounded-2xl object-cover ring-2 ring-white shadow-md shadow-slate-200" />
-                                  <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full ${
-                                    u.isPermanentlyBanned || (u.bannedUntil && new Date(u.bannedUntil.toDate()) > new Date()) 
-                                      ? 'bg-red-500' 
-                                      : 'bg-emerald-500'
-                                  }`} />
-                                </div>
-                              ) : (
-                                <div className="w-11 h-11 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-black shadow-inner">
-                                  {u.displayName[0]}
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <p className="font-bold text-slate-900 leading-tight truncate">{u.displayName}</p>
-                                <p className="text-[10px] font-medium text-slate-400 mt-0.5 truncate">{u.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-middle">
-                            <div className="flex gap-1.5 font-black uppercase text-[9px] tracking-tight">
-                              {u.role === 'admin' && <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md flex items-center gap-1 border border-red-100"><Shield className="w-2.5 h-2.5" /> PRIME</span>}
-                              {u.role === 'moderator' && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md flex items-center gap-1 border border-blue-100"><ShieldCheck className="w-2.5 h-2.5" /> MOD</span>}
-                              {u.role === 'user' && <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md border border-slate-200/50">USER</span>}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 align-middle">
-                            {u.isPermanentlyBanned || (u.bannedUntil && new Date(u.bannedUntil.toDate()) > new Date()) ? (
-                              <Badge variant="destructive" className="rounded-lg uppercase font-black text-[10px] px-2.5 py-1">Banned</Badge>
-                            ) : u.isVerifiedCarrier ? (
-                              <Badge variant="approved" className="rounded-lg uppercase font-black text-[10px] px-2.5 py-1 shadow-sm shadow-blue-100/50 border-blue-200">Verified</Badge>
-                            ) : (
-                              <Badge variant="secondary" className="rounded-lg uppercase font-black text-[10px] px-2.5 py-1 bg-slate-100 text-slate-400 border-slate-200/50">Standard</Badge>
-                            )}
-                          </td>
-                          <td className="px-8 py-4 text-right align-middle">
-                               <div className="flex justify-end gap-1.5">
-                               {isAdmin && (
-                                 <>
-                                   {u.role !== 'admin' && (
-                                     <Button title="Promote to Moderator" size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-white border border-slate-100 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 shadow-sm transition-all" onClick={() => changeUserRole(u.uid, 'moderator')}>
-                                       <ShieldAlert className="w-4 h-4" />
-                                     </Button>
-                                   )}
-                                   <Button title="Ban User" size="icon" variant="ghost" className="h-9 w-9 text-red-600 bg-white border border-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200 shadow-sm transition-all" onClick={() => banUser(u.uid, 'perm')}>
-                                     <Ban className="w-4 h-4" />
-                                   </Button>
-                                   <Button title="Delete User Record" size="icon" variant="ghost" className="h-9 w-9 text-red-600 bg-white border border-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200 shadow-sm transition-all" onClick={() => deleteUser(u.uid)}>
-                                     <Trash2 className="w-4 h-4" />
-                                   </Button>
-                                 </>
-                               )}
-                               {u.isVerifiedCarrier && (
-                                 <Button title="Revoke Verification" size="icon" variant="ghost" className="h-9 w-9 text-amber-600 bg-white border border-slate-100 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 shadow-sm transition-all" onClick={() => removeUserVerification(u.uid)}>
-                                   <UserMinus className="w-4 h-4" />
-                                 </Button>
-                               )}
-                               <Button title="More Actions" size="icon" variant="ghost" className="h-9 w-9 text-slate-400 bg-white border border-slate-100 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-all">
-                                 <MoreVertical className="w-4 h-4" />
-                               </Button>
-                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <UserMatrix 
+              users={allUsers} 
+              isAdmin={isAdmin} 
+              currentUser={profile}
+              onRefresh={subscribeToAdminData} 
+            />
           )}
 
           {/* Verification Tab Content (Re-using old logic but with new UI) */}

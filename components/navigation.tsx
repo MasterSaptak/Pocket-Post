@@ -34,7 +34,7 @@ export const Navigation = memo(function Navigation() {
       { name: 'Feed', href: '/feed', icon: List },
     ];
     
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN') {
       items.push({ name: 'Command', href: '/admin', icon: Shield });
     } else if (profile?.role === 'moderator') {
       items.push({ name: 'Dashboard', href: '/admin', icon: LayoutDashboard });
@@ -53,7 +53,7 @@ export const Navigation = memo(function Navigation() {
         : [{ name: 'Sign In', href: '/auth/signin', icon: LogIn }]),
     ];
 
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN') {
       items.push({ name: 'Admin', href: '/admin', icon: Shield });
     }
 

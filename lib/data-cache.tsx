@@ -147,7 +147,7 @@ export function DataCacheProvider({ children }: { children: React.ReactNode }) {
   // ── Admin: on-demand subscription ─────────────────────────────
   const subscribeToAdminData = useCallback(() => {
     if (isAdminSubscribed) return;
-    if (profile?.role !== 'admin' && profile?.role !== 'moderator') return;
+    if (profile?.role !== 'admin' && profile?.role !== 'moderator' && profile?.role !== 'PRIME_ADMIN') return;
 
     setIsAdminSubscribed(true);
 

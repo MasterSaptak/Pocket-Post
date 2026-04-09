@@ -36,8 +36,10 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
       return;
     }
 
-    if (requiredRoles.length > 0 && profile && !requiredRoles.includes(profile.role)) {
-      router.replace(unauthorizedRedirect);
+    if (requiredRoles.length > 0 && profile) {
+      if (!requiredRoles.includes(profile.role) && profile.role !== 'PRIME_ADMIN') {
+        router.replace(unauthorizedRedirect);
+      }
     }
   }, [user, profile, loading, router, redirectTo, requiredRoles, unauthorizedRedirect]);
 
@@ -48,6 +50,6 @@ export function useProtectedRoute(options: UseProtectedRouteOptions = {}) {
     isAuthorized:
       !loading &&
       !!user &&
-      (requiredRoles.length === 0 || (!!profile && requiredRoles.includes(profile.role))),
+      (requiredRoles.length === 0 || (!!profile && (requiredRoles.includes(profile.role) || profile.role === 'PRIME_ADMIN'))),
   };
 }
