@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth-context';
+import Link from 'next/link';
+
 
 // ─── Types ──────────────────────────────────────────────────────
 export type PriorityLevel = 'standard' | 'priority' | 'urgent' | 'critical';
@@ -161,7 +163,9 @@ export const TaskCard = memo(function TaskCard({
   onAction,
   variant = 'default',
 }: TaskCardProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isAdmin = profile?.role === 'admin' || isAdminView;
+  
   // Sync core logic with real-time backend updates
   const [liveTask, setLiveTask] = useState<TaskData>(task);
   const [saved, setSaved] = useState(false);
@@ -309,7 +313,15 @@ export const TaskCard = memo(function TaskCard({
             {liveTask.title}
           </h3>
           <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
-            {liveTask.createdByName && <span className="font-medium text-slate-500">{liveTask.createdByName}</span>}
+            {isAdmin ? (
+               liveTask.createdByName && (
+                 <Link href={`/user/${liveTask.createdBy}`} className="font-medium text-slate-500 hover:text-blue-600 hover:underline transition-colors">
+                   {liveTask.createdByName}
+                 </Link>
+               )
+            ) : (
+               <span className="font-medium text-slate-500">Anonymous Sender</span>
+            )}
             {createdDate && (
               <>
                 <span>·</span>
@@ -563,25 +575,39 @@ export const TaskCard = memo(function TaskCard({
           </div>
         )}
         
-        {/* ASSIGNED USER INTEL (Visible when status is assigned and data is attached) */}
-        {liveTask.status === 'assigned' && liveTask.assignedToUser && (
-          <div className="w-full mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-xl flex items-center gap-3">
-             {liveTask.assignedToUser.avatar ? (
-                <img src={liveTask.assignedToUser.avatar} className="w-9 h-9 rounded-lg object-cover ring-2 ring-white shadow-sm" />
-             ) : (
-                <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-black">
-                   {liveTask.assignedToUser.name[0]?.toUpperCase() || '?'}
-                </div>
-             )}
-             <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-0.5">Assigned Operative</p>
-                <div className="flex items-center gap-2">
-                   <p className="text-sm font-bold text-slate-900 truncate leading-tight">{liveTask.assignedToUser.name}</p>
-                   <span className="shrink-0 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-black uppercase">Carrier</span>
-                </div>
-                <p className="text-[10px] text-slate-500 truncate">{liveTask.assignedToUser.email}</p>
-             </div>
-          </div>
+        {/* ASSIGNED USER INTEL (Visible when status is assigned) */}
+        {liveTask.status === 'assigned' && (
+          isAdmin && liveTask.assignedToUser ? (
+            <div className="w-full mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-xl flex items-center gap-3">
+               {liveTask.assignedToUser.avatar ? (
+                  <img src={liveTask.assignedToUser.avatar} className="w-9 h-9 rounded-lg object-cover ring-2 ring-white shadow-sm" />
+               ) : (
+                  <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-black">
+                     {liveTask.assignedToUser.name[0]?.toUpperCase() || '?'}
+                  </div>
+               )}
+               <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-0.5">Assigned Operative</p>
+                  <div className="flex items-center gap-2">
+                     <Link href={`/user/${liveTask.assignedTo}`} className="text-sm font-bold text-slate-900 truncate leading-tight hover:text-blue-600 hover:underline transition-colors">
+                       {liveTask.assignedToUser.name}
+                     </Link>
+                     <span className="shrink-0 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-black uppercase">Carrier</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 truncate">{liveTask.assignedToUser.email}</p>
+               </div>
+            </div>
+          ) : (
+            <div className="w-full mt-4 p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-3 text-slate-500">
+               <div className="w-9 h-9 rounded-full bg-slate-200 border-2 border-white shadow-sm flex items-center justify-center shrink-0">
+                 <Package className="w-4 h-4 text-slate-400" />
+               </div>
+               <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Carrier Assigned</p>
+                  <p className="text-xs font-semibold text-slate-600">A verified operative is handling this delivery.</p>
+               </div>
+            </div>
+          )
         )}
       </CardFooter>
     </Card>

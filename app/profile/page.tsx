@@ -293,29 +293,31 @@ export default function ProfilePage() {
             : 'border border-white shadow-xl'
         }`}>
         
-        {/* Abstract Cover Graphic - Smooth Color Transition! */}
-        <div className={`h-36 sm:h-48 bg-gradient-to-br ${trustConfig.gradient} relative transition-colors duration-1000 ease-out overflow-hidden`}>
-          <div className="absolute inset-0 bg-black/5 mix-blend-overlay" />
-          <div className="absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
+        {/* Gamified Rank Image Banner */}
+        <div 
+          className="h-36 sm:h-48 relative transition-all duration-1000 ease-out overflow-hidden bg-slate-900"
+          style={{
+            backgroundImage: `url('${encodeURI(trustConfig.bgImage || '')}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          {/* Subtle vignette to ensure top edge (where buttons live) is readable */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent pointer-events-none" />
           
-          {/* Verified Special Glow & Pattern */}
+          {/* Verified Special Shimmer Pattern */}
           {isVerified && (
-            <>
-              {/* Premium Gold Dodge effect */}
-              <div className="absolute inset-0 opacity-50 mix-blend-color-dodge bg-gradient-to-tr from-amber-400/80 via-transparent to-yellow-200/80" />
-              {/* Animated Light Sweep */}
-              <div className="absolute inset-0 w-[200%] h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-[150%] animate-[shimmer_4s_ease-in-out_infinite]" />
-            </>
+            <div className="absolute inset-0 w-[200%] h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] animate-[shimmer_4s_ease-in-out_infinite] pointer-events-none" />
           )}
           
           <div className="absolute top-4 right-4 flex gap-2 z-20">
             {profile?.role === 'admin' && (
-              <Button asChild variant="secondary" size="sm" className="rounded-xl bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm">
-                <Link href="/admin"><Shield className="w-4 h-4 mr-2" /> Admin</Link>
+              <Button asChild variant="secondary" size="sm" className="rounded-xl bg-black/30 hover:bg-black/40 text-white border border-white/10 backdrop-blur-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all">
+                <Link href="/admin"><Shield className="w-4 h-4 mr-1.5" /> Admin</Link>
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={signOut} className="rounded-xl bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md shadow-sm">
-              <LogOut className="w-4 h-4 mr-2" /> Sign Out
+            <Button variant="secondary" size="sm" onClick={signOut} className="rounded-xl bg-black/30 hover:bg-black/40 text-white border border-white/10 backdrop-blur-xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all">
+              <LogOut className="w-4 h-4 mr-1.5" /> Sign Out
             </Button>
           </div>
         </div>

@@ -5,12 +5,23 @@ export function getTrustScoreConfig(profile: UserProfile | null) {
   const isNew = !profile || (profile.acceptedTasks || 0) === 0;
   const isAdmin = profile?.role === 'admin';
   
+  if (isAdmin) {
+    return {
+      level: 'ELITE',
+      score: profile?.accuracyScore ?? 100,
+      bgImage: '/Elite.png',
+      badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
+      label: 'Elite',
+      icon: Zap
+    };
+  }
+
   if (isNew) {
     return {
-      level: 'NEW',
+      level: 'NEW_USER',
       score: 0,
-      gradient: 'from-violet-600 via-indigo-600 to-blue-600',
-      badgeClass: isAdmin ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200',
+      bgImage: '/New User.png',
+      badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
       label: 'New User',
       icon: User
     };
@@ -22,17 +33,18 @@ export function getTrustScoreConfig(profile: UserProfile | null) {
   const late = profile.lateTasks || 0;
   
   let rawScore = (completed / accepted) * 100;
-  rawScore -= (cancelled * 10); // Penalty
-  rawScore -= (late * 5);       // Penalty
+  rawScore -= (cancelled * 10);
+  rawScore -= (late * 5);
   const score = Math.max(0, Math.min(100, Math.round(rawScore)));
 
   if (score >= 90) {
-    return { level: 'ELITE', score, gradient: 'from-emerald-400 via-teal-500 to-emerald-600', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Elite Carrier', icon: Zap };
+    return { level: 'ELITE', score, bgImage: '/Elite.png', badgeClass: 'bg-orange-50 text-orange-700 border-orange-200', label: 'Elite', icon: Zap };
   } else if (score >= 75) {
-    return { level: 'GOOD', score, gradient: 'from-cyan-500 via-blue-500 to-indigo-600', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200', label: 'Good Performer', icon: CheckCircle };
+    return { level: 'TRUSTED', score, bgImage: '/Trusted.png', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Trusted', icon: CheckCircle };
   } else if (score >= 50) {
-    return { level: 'AVERAGE', score, gradient: 'from-orange-400 via-amber-500 to-yellow-500', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Average', icon: Clock };
+    return { level: 'ACTIVE', score, bgImage: '/Active.png', badgeClass: 'bg-violet-50 text-violet-700 border-violet-200', label: 'Active', icon: Zap };
   } else {
-    return { level: 'POOR', score, gradient: 'from-rose-500 via-red-500 to-red-700', badgeClass: 'bg-red-50 text-red-700 border-red-200', label: 'Poor Reliability', icon: Shield };
+    // Treat score < 50 as Starter since we don't have a "Poor" banner based on the new spec
+    return { level: 'STARTER', score, bgImage: '/Starter.png', badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200', label: 'Starter', icon: Clock };
   }
 }
