@@ -77,7 +77,7 @@ export default function EditTaskPage() {
           const data = docSnap.data() as TaskData;
           
           const isOwner = user?.uid === data.createdBy;
-          const isMod = profile?.role === 'admin' || profile?.role === 'moderator';
+          const isMod = profile?.role === 'admin' || profile?.role === 'moderator' || profile?.role === 'PRIME_ADMIN';
           
           if (!isOwner && !isMod) {
             toast.error('You do not have permission to edit this mission.');
