@@ -402,20 +402,20 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 2: WHAT IS POCKETPOST?
           ═══════════════════════════════════════════════════════ */}
-      <section id="what-is" className="py-24 lg:py-32 bg-transparent relative">
+      <section id="what-is" className="py-20 lg:py-24 bg-transparent relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row items-center gap-16">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
             {/* Left: Visual */}
             <AnimatedSection className="flex-1 relative">
-              <div className="relative w-full max-w-lg mx-auto">
+              <div className="relative w-full max-w-sm mx-auto">
                 <div className="absolute -inset-4 bg-gradient-to-br from-blue-100/60 to-emerald-100/60 rounded-3xl blur-2xl" />
-                <div className="relative glass-panel rounded-3xl p-10 shadow-lg border border-white/30">
+                <div className="relative glass-panel rounded-3xl p-8 shadow-lg border border-white/30">
                   <Image
                     src="/LOGO.png"
                     alt="PocketPost Logo"
-                    width={280}
-                    height={280}
-                    className="w-full max-w-[280px] mx-auto object-contain"
+                    width={220}
+                    height={220}
+                    className="w-full max-w-[220px] mx-auto object-contain"
                   />
                 </div>
               </div>
@@ -423,37 +423,37 @@ export default function Home() {
 
             {/* Right: Copy */}
             <AnimatedSection className="flex-1" delay={0.2}>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-semibold uppercase tracking-wider mb-4">
-                <Package className="w-3.5 h-3.5" />
-                About
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest mb-4">
+                <Package className="w-3 h-3" />
+                Intelligence
               </div>
-              <h2 className="text-3xl lg:text-5xl font-heading font-bold text-slate-900 mb-6 leading-tight">
+              <h2 className="text-3xl lg:text-4xl font-heading font-black text-slate-900 mb-5 leading-tight tracking-tight">
                 What is PocketPost?
               </h2>
-              <p className="text-lg text-slate-600 leading-relaxed mb-6">
-                PocketPost connects people who need to send items across borders with <strong className="text-slate-900">verified travelers already going that way</strong> — making delivery faster, cheaper, and more private than traditional shipping.
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed mb-6 font-medium">
+                PocketPost connects people who need to send items across borders with <strong className="text-slate-900">verified travelers already going that way</strong> — making delivery faster, cheaper, and more private.
               </p>
-              <p className="text-slate-500 leading-relaxed mb-8">
-                Think of it as ride-sharing, but for packages. No warehouses, no sorting facilities, no weeks of waiting. Just real people carrying real items on real journeys — all verified and controlled by admin review.
+              <p className="text-sm text-slate-500 leading-relaxed mb-8">
+                Think of it as logistics, but for people. No warehouses, no sorting facilities, no weeks of waiting. Just real people carrying real items on real journeys — all verified by admin review.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex items-center gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
                   <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
                     <Users className="w-4 h-4 text-blue-500" />
                   </div>
-                  <span>Peer-to-peer delivery</span>
+                  <span>Peer-to-Peer</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
                   <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
                     <MapPin className="w-4 h-4 text-emerald-500" />
                   </div>
-                  <span>Cross-border capable</span>
+                  <span>Cross-Border</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-3 text-xs font-bold text-slate-600 uppercase tracking-wide">
                   <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
                     <Shield className="w-4 h-4 text-indigo-500" />
                   </div>
-                  <span>Admin-controlled</span>
+                  <span>Verified</span>
                 </div>
               </div>
             </AnimatedSection>
@@ -464,47 +464,39 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 3: HOW IT WORKS
           ═══════════════════════════════════════════════════════ */}
-      <section id="how-it-works" className="py-24 lg:py-32 bg-transparent relative">
+      <section id="how-it-works" className="py-20 lg:py-24 bg-transparent relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AnimatedSection className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-semibold uppercase tracking-wider mb-4">
-              <Zap className="w-3.5 h-3.5" />
-              Simple Process
+          <AnimatedSection className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest mb-4">
+              <Zap className="w-3 h-3" />
+              Operations
             </div>
-            <h2 className="text-3xl lg:text-5xl font-heading font-bold text-slate-900 mb-4">
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-slate-900 mb-3 tracking-tight">
               How It Works
             </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              Three simple steps from posting your task to getting it done.
+            <p className="text-base text-slate-500 max-w-xl mx-auto font-medium">
+              Three simple steps from posting your task to getting it delivered.
             </p>
           </AnimatedSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
             {howItWorks.map((item, index) => (
               <AnimatedSection key={item.step} delay={index * 0.15}>
-                <div className="relative group">
-                  {/* Connecting line between steps (desktop) */}
-                  {index < howItWorks.length - 1 && (
-                    <div className="hidden md:block absolute top-12 left-[60%] right-[-40%] h-0.5 bg-slate-200 z-0">
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-transparent opacity-30" />
-                    </div>
-                  )}
-
-                  <div className="relative z-10 bg-white rounded-2xl p-8 shadow-sm border border-slate-100 hover:shadow-lg hover:border-blue-100 transition-all duration-300 group-hover:-translate-y-1">
+                <div className="relative group h-full">
+                  <div className="relative z-10 bg-white rounded-2xl p-7 h-full shadow-sm border border-slate-100 hover:shadow-lg hover:border-blue-100 transition-all duration-300">
                     {/* Step Number */}
-                    <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-6 shadow-lg`}>
-                      <item.icon className="w-7 h-7 text-white" />
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-6 shadow-md`}>
+                      <item.icon className="w-6 h-6 text-white" />
                     </div>
 
-                    {/* Step label */}
-                    <div className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-2">
+                    <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-2">
                       Step {item.step}
                     </div>
 
-                    <h3 className="text-xl font-heading font-bold text-slate-900 mb-3">
+                    <h3 className="text-lg font-black text-slate-900 mb-2">
                       {item.title}
                     </h3>
-                    <p className="text-slate-500 leading-relaxed">
+                    <p className="text-sm text-slate-500 leading-relaxed font-medium">
                       {item.description}
                     </p>
                   </div>
@@ -518,32 +510,32 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 4: WHY POCKETPOST?
           ═══════════════════════════════════════════════════════ */}
-      <section id="why" className="py-24 lg:py-32 bg-transparent relative">
+      <section id="why" className="py-20 lg:py-24 bg-transparent relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AnimatedSection className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-semibold uppercase tracking-wider mb-4">
-              <CheckCircle className="w-3.5 h-3.5" />
+          <AnimatedSection className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest mb-4">
+              <CheckCircle className="w-3 h-3" />
               Advantages
             </div>
-            <h2 className="text-3xl lg:text-5xl font-heading font-bold text-slate-900 mb-4">
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-slate-900 mb-3 tracking-tight">
               Why PocketPost?
             </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
-              Traditional shipping is slow, expensive, and impersonal. Here&apos;s why people choose us.
+            <p className="text-base text-slate-500 max-w-xl mx-auto font-medium">
+              Traditional shipping is slow and expensive. We built a better way.
             </p>
           </AnimatedSection>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {whyPocketPost.map((item, index) => (
               <AnimatedSection key={item.title} delay={index * 0.1}>
-                <div className={`relative rounded-2xl p-6 bg-gradient-to-br ${item.gradient} border border-slate-100 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 h-full`}>
-                  <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center mb-5">
-                    <item.icon className={`w-6 h-6 ${item.iconColor}`} />
+                <div className={`relative rounded-2xl p-6 bg-gradient-to-br ${item.gradient} border border-slate-100 hover:shadow-md transition-all duration-300 h-full`}>
+                  <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center mb-5">
+                    <item.icon className={`w-5 h-5 ${item.iconColor}`} />
                   </div>
-                  <h3 className="text-lg font-heading font-bold text-slate-900 mb-2">
+                  <h3 className="text-base font-black text-slate-900 mb-2">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">
+                  <p className="text-[13px] text-slate-500 leading-relaxed font-medium">
                     {item.description}
                   </p>
                 </div>
@@ -556,95 +548,68 @@ export default function Home() {
       {/* ═══════════════════════════════════════════════════════
           SECTION 5: TRUST & SAFETY
           ═══════════════════════════════════════════════════════ */}
-      <section id="trust" className="py-24 lg:py-32 bg-transparent relative overflow-hidden">
+      <section id="trust" className="py-20 lg:py-24 bg-transparent relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-slate-900" />
-        <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 opacity-5">
           <Image src="/BACKGROUND.png" alt="" fill className="object-cover" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AnimatedSection className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-4 border border-emerald-500/20">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Security
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <AnimatedSection className="mb-12">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest mb-4 border border-emerald-500/20">
+              <ShieldCheck className="w-3 h-3" />
+              Protocol
             </div>
-            <h2 className="text-3xl lg:text-5xl font-heading font-bold text-white mb-4">
+            <h2 className="text-3xl lg:text-4xl font-heading font-black text-white mb-3 tracking-tight">
               Built for Trust
             </h2>
-            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-              Every layer of PocketPost is designed with security and privacy at its core. No shortcuts.
+            <p className="text-base text-slate-400 max-w-xl mx-auto">
+              Every layer of the platform is designed with security at its core.
             </p>
           </AnimatedSection>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
             {trustFeatures.map((feature, index) => (
               <AnimatedSection key={feature.label} delay={index * 0.1}>
-                <div className="flex gap-4 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 flex items-center justify-center shrink-0">
-                    <feature.icon className="w-6 h-6 text-emerald-400" />
+                <div className="flex gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-sm hover:bg-white/[0.07] transition-colors text-left">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 flex items-center justify-center shrink-0">
+                    <feature.icon className="w-5 h-5 text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="font-heading font-semibold text-white mb-1">{feature.label}</h3>
-                    <p className="text-sm text-slate-400 leading-relaxed">{feature.desc}</p>
+                    <h3 className="text-sm font-black text-white mb-1 uppercase tracking-wide">{feature.label}</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed font-medium">{feature.desc}</p>
                   </div>
                 </div>
               </AnimatedSection>
             ))}
           </div>
-
-          {/* Delivery tracking visual */}
-          <AnimatedSection className="mt-16 max-w-2xl mx-auto" delay={0.3}>
-            <div className="rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm p-8">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-6 text-center">Real-Time Delivery Stages</p>
-              <div className="flex items-center justify-between">
-                {['Posted', 'Approved', 'Assigned', 'In Transit', 'Delivered'].map((stage, i) => (
-                  <div key={stage} className="flex flex-col items-center gap-2 relative">
-                    {i < 4 && (
-                      <div className="hidden sm:block absolute top-3 left-[60%] w-[calc(100%+2rem)] h-0.5 bg-slate-700" />
-                    )}
-                    <div className={`w-6 h-6 rounded-full relative z-10 flex items-center justify-center ${
-                      i <= 3 ? 'bg-emerald-500' : 'bg-slate-700'
-                    }`}>
-                      {i <= 3 && (
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="text-[10px] sm:text-xs text-slate-400 font-medium text-center">{stage}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </AnimatedSection>
         </div>
       </section>
 
       {/* ═══════════════════════════════════════════════════════
           SECTION 6: FINAL CTA
           ═══════════════════════════════════════════════════════ */}
-      <section className="py-24 lg:py-32 bg-transparent relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-400/15 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[600px] h-[400px] bg-emerald-400/10 blur-[100px] rounded-full pointer-events-none" />
-
-        <AnimatedSection className="relative z-10 max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl lg:text-5xl font-heading font-bold text-slate-900 mb-6">
-            Start Getting Things Done
+      <section className="py-20 lg:py-28 bg-transparent relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-400/10 blur-[120px] rounded-full pointer-events-none" />
+        
+        <AnimatedSection className="relative z-10 max-w-2xl mx-auto px-4 text-center">
+          <h2 className="text-3xl lg:text-4xl font-heading font-black text-slate-900 mb-4 tracking-tight">
+            Start Your Mission.
           </h2>
-          <p className="text-lg text-slate-500 mb-10 max-w-xl mx-auto leading-relaxed">
-            Join the platform where tasks get done. Post, discover, apply — all powered by a trusted community of verified carriers.
+          <p className="text-base text-slate-500 mb-8 font-medium">
+            Join the platform where tasks get done. Post, discover, apply — powered by a trusted community.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button asChild size="lg" variant="signature" className="w-full sm:w-auto group">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button asChild size="lg" variant="signature" className="w-full sm:w-auto h-12 rounded-xl text-xs font-black uppercase tracking-[0.15em] px-8">
               <Link href="/post">
                 Post a Task
-                <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="ml-2 w-4 h-4" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto h-12 rounded-xl text-xs font-black uppercase tracking-[0.15em] px-8">
               <Link href="/feed">
-                Browse Tasks
+                Browse Feed
               </Link>
             </Button>
           </div>

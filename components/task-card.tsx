@@ -5,7 +5,7 @@ import { format, differenceInHours, differenceInDays, differenceInMinutes, isPas
 import {
   MapPin, ThumbsUp, Zap, UserPlus, Clock, Trash2, DollarSign,
   Package, Weight, Eye, Users, TrendingUp, Bookmark, ExternalLink,
-  Timer, ChevronRight, X
+  Timer, ChevronRight, X, Shield
 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -248,37 +248,44 @@ export const TaskCard = memo(function TaskCard({
         ${!isCritical && !isUrgent ? 'hover:border-blue-200' : ''}
       `}
     >
-      {/* Critical pulsing glow */}
-      {isCritical && (
-        <motion.div
-          animate={{ opacity: [0.02, 0.08, 0.02] }}
-          transition={{ duration: 2.5, repeat: Infinity }}
-          className="absolute inset-0 bg-red-500 pointer-events-none"
-        />
+      {/* Premium Backdrop Glow for Featured/Critical */}
+      {(isFeatured || isCritical) && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <motion.div
+            animate={{ 
+              opacity: isCritical ? [0.05, 0.1, 0.05] : [0.03, 0.06, 0.03],
+              scale: isFeatured ? [1, 1.1, 1] : [1, 1.05, 1]
+            }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className={`absolute -right-20 -top-20 w-64 h-64 rounded-full blur-[80px] ${
+              isCritical ? 'bg-red-500' : 'bg-blue-400'
+            }`}
+          />
+        </div>
       )}
 
       {/* ═══ TOP ROW: Bounty + Priority + Status ═══ */}
       <CardHeader className="pb-2 relative z-10">
         <div className="flex items-center justify-between gap-3 mb-2">
           {/* Left: Bounty prominent display */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {liveTask.bounty != null && liveTask.bounty > 0 ? (
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-black ${
-                liveTask.bounty >= 1000 ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-200/50'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black ${
+                liveTask.bounty >= 1000 ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
               }`}>
                 <span>{liveTask.currency === 'USD' ? '$' : liveTask.currency === 'BDT' ? '৳' : liveTask.currency === 'EUR' ? '€' : liveTask.currency === 'GBP' ? '£' : '₹'}{liveTask.bounty.toLocaleString()}</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-50 text-slate-400 text-xs border border-slate-100">
-                <DollarSign className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 text-slate-400 text-[10px] border border-slate-100">
+                <DollarSign className="w-3 h-3" />
                 <span>No bounty</span>
               </div>
             )}
 
             {/* Parcel type chip */}
             {parcel && (
-              <span className="px-2 py-1 rounded-lg bg-violet-50/80 border border-violet-100 text-violet-600 text-[11px] font-semibold">
+              <span className="px-1.5 py-0.5 rounded bg-violet-50/80 border border-violet-100 text-violet-600 text-[10px] font-bold">
                 {parcel.emoji} {parcel.label}
               </span>
             )}
@@ -308,108 +315,103 @@ export const TaskCard = memo(function TaskCard({
         </div>
 
         {/* ═══ TITLE + META ═══ */}
-        <div>
-          <h3 className={`font-heading font-bold leading-tight text-slate-900 mb-1 ${isFeatured ? 'text-lg' : 'text-[15px]'}`}>
-            {liveTask.isPinned && <Clock className="w-3.5 h-3.5 text-amber-500 fill-amber-500 inline mr-1.5 -mt-0.5" />}
+        <div className="space-y-1">
+          <h3 className={`font-heading font-black leading-tight text-slate-900 transition-colors group-hover:text-blue-700 ${isFeatured ? 'text-lg sm:text-2xl tracking-tighter' : 'text-[14px] sm:text-[15px] tracking-tight'}`}>
+            {liveTask.isPinned && <Clock className="w-3.5 h-3.5 text-amber-500 fill-amber-500 inline mr-1.5 -mt-1 shadow-sm" />}
             {liveTask.title}
           </h3>
-          <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
-            {isAdmin ? (
-               liveTask.createdByName && (
-                 <Link href={`/user/${liveTask.createdBy}`} className="font-medium text-slate-500 hover:text-blue-600 hover:underline transition-colors">
-                   {liveTask.createdByName}
-                 </Link>
-               )
-            ) : (
-               <span className="font-medium text-slate-500">Anonymous Sender</span>
-            )}
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 font-black uppercase tracking-widest flex-wrap">
+            <span className="flex items-center gap-1 text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100 select-none">
+              <Shield className="w-2.5 h-2.5" />
+              Protected ID
+            </span>
             {createdDate && (
-              <>
-                <span>·</span>
-                <span>{format(createdDate, 'MMM d')}</span>
-              </>
+              <span className="flex items-center gap-1 opacity-70">
+                <div className="w-1 h-1 rounded-full bg-slate-200" />
+                {format(createdDate, 'MMM d')}
+              </span>
             )}
             {task.weight != null && task.weight > 0 && (
-              <>
-                <span>·</span>
-                <span className="flex items-center gap-0.5"><Weight className="w-3 h-3" />{task.weight}kg</span>
-              </>
+              <span className="hidden sm:flex items-center gap-1 bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-md border border-violet-100">
+                <Weight className="w-2.5 h-2.5" />
+                {task.weight}kg
+              </span>
             )}
           </div>
         </div>
       </CardHeader>
 
       {/* ═══ BODY ═══ */}
-      <CardContent className="pt-0 pb-3 space-y-2.5 relative z-10">
-        <p className={`text-sm text-slate-600 leading-relaxed ${isFeatured ? 'line-clamp-3' : 'line-clamp-2'}`}>
+      <CardContent className="pt-0 pb-1.5 space-y-1.5 relative z-10">
+        <p className={`text-[12px] sm:text-[13px] text-slate-600 leading-snug line-clamp-2`}>
           {liveTask.description}
         </p>
 
-        {/* ═══ META CHIPS: Locations + Time Left ═══ */}
-        <div className="flex flex-col gap-1.5 w-full">
-          {liveTask.pickupLocation && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-medium w-fit max-w-[90%]">
-              <MapPin className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Pick up: {liveTask.pickupLocation}</span>
-            </div>
-          )}
-          {liveTask.dropoffLocation && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-xs font-medium w-fit max-w-[90%]">
-              <MapPin className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">Drop off: {liveTask.dropoffLocation}</span>
-            </div>
-          )}
-          {liveTask.location && !liveTask.pickupLocation && !liveTask.dropoffLocation && (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100 text-slate-500 text-xs w-fit">
-              <MapPin className="w-3 h-3 text-slate-400" />
-              <span className="truncate max-w-[140px]">{liveTask.location}</span>
-            </div>
-          )}
+        {/* ═══ COMPACT ROUTE FLOW ═══ */}
+        <div className="flex flex-col gap-1 w-full mt-0.5">
+          {(liveTask.pickupLocation || liveTask.dropoffLocation) && (
+            <div className="flex items-center gap-1 px-1.5 py-1 rounded-lg bg-slate-50/50 border border-slate-100/50 group/route">
+               <div className="flex-1 min-w-0 flex items-center gap-1">
+                  <div className="w-5 h-5 rounded-md bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100 shadow-sm">
+                    <MapPin className="w-2.5 h-2.5 text-emerald-600" />
+                  </div>
+                  <span className="text-[10px] sm:text-[11px] font-black text-slate-700 truncate">{liveTask.pickupLocation || 'Remote'}</span>
+               </div>
+               
+               <ChevronRight className="w-2.5 h-2.5 text-slate-300 shrink-0" />
 
-          <div className="flex flex-wrap items-center gap-1.5 mt-1">
-            {timeLeft && (
-              <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-semibold ${timeLeftColors[timeLeft.urgency]}
-                ${timeLeft.urgency === 'critical' ? 'animate-pulse' : ''}
-              `}>
-                <Timer className="w-3 h-3" />
-                <span>{timeLeft.text}</span>
-              </div>
-            )}
-          </div>
+               <div className="flex-1 min-w-0 flex items-center gap-1">
+                  <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100 shadow-sm">
+                    <MapPin className="w-2.5 h-2.5 text-blue-600" />
+                  </div>
+                  <span className="text-[10px] sm:text-[11px] font-black text-slate-700 truncate">{liveTask.dropoffLocation || 'Market'}</span>
+               </div>
+            </div>
+          )}
+          {timeLeft && (
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] sm:text-[10px] font-black w-fit uppercase tracking-tight ${timeLeftColors[timeLeft.urgency]}
+              ${timeLeft.urgency === 'critical' ? 'animate-pulse' : ''}
+            `}>
+              <Timer className="w-2.5 h-2.5" />
+              <span>{timeLeft.text}</span>
+            </div>
+          )}
         </div>
 
         {/* ═══ ACTIVITY BAR ═══ */}
         <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-3 text-[11px] text-slate-400">
+          <div className="flex items-center gap-2 text-[10px] text-slate-400">
             {(liveTask.status === 'assigned' || liveTask.status === 'in_progress') && (
-              <span className="flex items-center gap-1 font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-md border border-violet-200">
-                <Users className="w-3 h-3" />
-                {liveTask.queueCount || 0} in queue
+              <span className="flex items-center gap-1 font-black text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-md border border-violet-100 uppercase tracking-tighter">
+                <Users className="w-2.5 h-2.5" />
+                {liveTask.queueCount || 0} queue
               </span>
             )}
             {liveTask.bidsCount != null && liveTask.bidsCount > 0 && liveTask.status === 'open' && (
-              <span className="flex items-center gap-1 font-medium">
-                <Users className="w-3 h-3 text-blue-400" />
+              <span className="flex items-center gap-1 font-black text-blue-500 uppercase tracking-tighter">
+                <Users className="w-2.5 h-2.5 opacity-70" />
                 {liveTask.bidsCount} bid{liveTask.bidsCount !== 1 ? 's' : ''}
               </span>
             )}
-            {liveTask.followsCount != null && liveTask.followsCount > 0 && (
-              <span className="flex items-center gap-1">
-                <Eye className="w-3 h-3 text-violet-400" />
-                {liveTask.followsCount}
-              </span>
-            )}
-            {liveTask.viewsCount != null && liveTask.viewsCount > 0 && (
-              <span className="flex items-center gap-1">
-                <TrendingUp className="w-3 h-3 text-emerald-400" />
-                {liveTask.viewsCount}
-              </span>
-            )}
+            <div className="hidden sm:flex items-center gap-2">
+              {liveTask.followsCount != null && liveTask.followsCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <Eye className="w-3 h-3 text-violet-400" />
+                  {liveTask.followsCount}
+                </span>
+              )}
+              {liveTask.viewsCount != null && liveTask.viewsCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3 text-emerald-400" />
+                  {liveTask.viewsCount}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Trending indicator */}
           {trendingScore > 10 && (
-            <span className="flex items-center gap-1 text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-200">
+            <span className="flex items-center gap-1 text-[9px] font-black text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-100 uppercase tracking-widest">
               🔥 Hot
             </span>
           )}
@@ -417,7 +419,7 @@ export const TaskCard = memo(function TaskCard({
       </CardContent>
 
       {/* ═══ ACTIONS BAR ═══ */}
-      <CardFooter className="pt-0 pb-3 px-5 relative z-10">
+      <CardFooter className="pt-0 pb-3 px-4 relative z-10">
         {!isAdminView ? (
           <div className="flex items-center gap-1.5 w-full">
             {/* Like */}
@@ -425,13 +427,13 @@ export const TaskCard = memo(function TaskCard({
               whileTap={{ scale: 0.9 }}
               onClick={handleLike}
               disabled={liked}
-              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`inline-flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-black transition-all ${
                 liked
                   ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                  : 'bg-slate-50 text-slate-500 border border-slate-150 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200'
+                  : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-blue-50 hover:text-blue-600'
               }`}
             >
-              <ThumbsUp className={`w-3.5 h-3.5 ${liked ? 'fill-blue-500' : ''}`} />
+              <ThumbsUp className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${liked ? 'fill-blue-500' : ''}`} />
               <AnimatePresence mode="popLayout">
                 <motion.span
                   key={localReactionCount}
@@ -449,13 +451,13 @@ export const TaskCard = memo(function TaskCard({
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleSave}
-              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`inline-flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-black transition-all ${
                 saved
                   ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                  : 'bg-slate-50 text-slate-500 border border-slate-150 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'
+                  : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-amber-50 hover:text-amber-600'
               }`}
             >
-              <Bookmark className={`w-3.5 h-3.5 ${saved ? 'fill-amber-500' : ''}`} />
+              <Bookmark className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${saved ? 'fill-amber-500' : ''}`} />
               <span className="hidden sm:inline">Save</span>
             </motion.button>
 

@@ -297,7 +297,7 @@ export default function ProfilePage() {
         
         {/* Gamified Rank Image Banner */}
         <div 
-          className="h-36 sm:h-48 relative transition-all duration-1000 ease-out overflow-hidden bg-slate-900"
+          className="h-28 sm:h-36 relative transition-all duration-1000 ease-out overflow-hidden bg-slate-900"
           style={{
             backgroundImage: `url('${encodeURI(trustConfig.bgImage || '')}')`,
             backgroundSize: 'cover',
@@ -330,76 +330,67 @@ export default function ProfilePage() {
             <div className="relative z-10 group">
               <div className="absolute -inset-2 bg-gradient-to-b from-white/30 to-white/0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
               {user.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || 'Profile'} className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] object-cover shadow-2xl border-4 bg-white z-10 ${profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN' ? 'border-amber-400' : 'border-white'}`} referrerPolicy="no-referrer" />
+                <img src={user.photoURL} alt={user.displayName || 'Profile'} className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-[2rem] object-cover shadow-2xl border-[3px] bg-white z-10 ${profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN' ? 'border-amber-400' : 'border-white'}`} referrerPolicy="no-referrer" />
               ) : (
-                <div className={`relative w-28 h-28 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-4 shadow-2xl flex items-center justify-center text-white text-5xl font-black z-10 ${profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN' ? 'border-amber-400' : 'border-white'}`}>
+                <div className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-[2rem] bg-gradient-to-br from-slate-800 to-slate-900 border-[3px] shadow-2xl flex items-center justify-center text-white text-3xl font-black z-10 ${profile?.role === 'admin' || profile?.role === 'PRIME_ADMIN' ? 'border-amber-400' : 'border-white'}`}>
                   {(user.displayName || user.email || 'U')[0].toUpperCase()}
                 </div>
               )}
               {isVerified && (
-                <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-emerald-500 border-4 border-white flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.6)] z-20 tooltip" title="Verified Carrier">
-                  <svg className="w-5 h-5 text-white drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 border-[3px] border-white flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.6)] z-20 tooltip" title="Verified Carrier">
+                  <svg className="w-4 h-4 text-white drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 </div>
               )}
             </div>
 
             {/* Profile Info */}
-            <div className="flex-1 text-center sm:text-left pt-2 pb-2">
-              <h1 className="text-3xl sm:text-5xl font-serif italic text-slate-900 tracking-tight leading-none mb-4 flex items-center justify-center sm:justify-start gap-3 flex-wrap">
-                {user.displayName || 'Anonymous User'}
-              </h1>
-              
-              {profile?.role === 'PRIME_ADMIN' && (
-                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#d97706] mb-3 mt-1.5">
-                  <div className="flex items-center gap-1.5 bg-[#fef3c7] px-2 py-1 rounded-md ring-1 ring-[#fde68a]">
-                    <Lock className="w-3 h-3" /> Protected Account
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mt-2 text-slate-500 font-medium text-sm">
-                {/* Email Chip */}
-                <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg">
-                  <Mail className="w-3.5 h-3.5" />
-                  <span>{user.email}</span>
-                </div>
-
-                {/* Trust Score Badge */}
-                <div title={trustConfig.score !== undefined ? `Accuracy Score: ${trustConfig.score}%` : 'No task history yet'} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-bold capitalize shadow-sm transition-all ${trustConfig.badgeClass}`}>
-                  <trustConfig.icon className="w-3.5 h-3.5" />
-                  <span>{trustConfig.label}</span>
-                </div>
+            <div className="flex-1 text-center sm:text-left pt-1 pb-1">
+              <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 mb-3">
+                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
+                    {user.displayName || 'Anonymous User'}
+                 </h1>
+                 {profile?.role === 'PRIME_ADMIN' && (
+                    <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md ring-1 ring-amber-200 w-fit mx-auto sm:mx-0">
+                       <Lock className="w-3 h-3" /> Secure
+                    </span>
+                 )}
               </div>
               
-              {/* Dynamic Metrics */}
-              {isVerified && (
-                <div className="flex items-center justify-center sm:justify-start gap-4 mt-3">
-                  <div className="flex items-center gap-1 text-amber-500 text-sm font-black bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-100/50">
-                    <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 mb-0.5" />
-                    <span>4.9</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-slate-200" />
-                  <div className="text-slate-600 text-sm font-bold">
-                    {eagerStats.completed} <span className="font-semibold text-slate-400">Deliveries</span>
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-slate-200" />
-                  <div className="text-emerald-600 text-sm font-bold flex items-center gap-0.5">
-                    <DollarSign className="w-3.5 h-3.5" />
-                    <span>0 <span className="font-semibold text-emerald-600/70">Earned</span></span>
-                  </div>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                  <Mail className="w-3 h-3" />
+                  <span className="lowercase">{user.email}</span>
                 </div>
-              )}
+
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border shadow-sm transition-all ${trustConfig.badgeClass}`}>
+                  <trustConfig.icon className="w-3 h-3" />
+                  <span>{trustConfig.label}</span>
+                </div>
+
+                {isVerified && (
+                  <>
+                    <div className="flex items-center gap-1 text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">
+                      <Star className="w-3 h-3 fill-current mb-0.5" />
+                      <span>4.9 Rating</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100/50">
+                      <CheckCircle className="w-3 h-3" />
+                      <span>{eagerStats.completed} Completed</span>
+                    </div>
+                  </>
+                )}
+              </div>
 
               <div className="flex items-center justify-center sm:justify-start gap-2 mt-4 flex-wrap">
                 {profile?.role === 'PRIME_ADMIN' ? (
-                  <span className="flex items-center gap-1.5 text-xs bg-slate-900 px-3 py-1.5 rounded-full font-serif tracking-[0.15em] uppercase text-amber-400 shadow-sm border border-amber-600/30">
-                    <Shield className="w-3.5 h-3.5" /> PRIME ADMIN
+                  <span className="flex items-center gap-1.5 text-[10px] bg-slate-900 px-3 py-1.5 rounded-full font-serif tracking-[0.15em] uppercase text-amber-400 shadow-sm border border-amber-600/30">
+                    <Shield className="w-3 h-3" /> PRIME ADMIN
                   </span>
                 ) : (
-                  <Badge variant="outline" className="capitalize bg-white shadow-sm border-slate-200">{profile?.role || 'User'}</Badge>
+                  <Badge variant="outline" className="capitalize bg-white shadow-sm border-slate-200 text-[10px] font-black">{profile?.role || 'User'}</Badge>
                 )}
-                {isVerified && <Badge variant="approved" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">Verified Carrier</Badge>}
-                {!isVerified && verificationStatus === 'pending' && <Badge variant="pending" className="font-bold">Review Pending</Badge>}
+                {isVerified && <Badge variant="approved" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-black text-[10px] uppercase">Verified</Badge>}
+                {!isVerified && verificationStatus === 'pending' && <Badge variant="pending" className="font-black text-[10px] uppercase">Review Pending</Badge>}
               </div>
             </div>
           </div>
@@ -427,17 +418,17 @@ export default function ProfilePage() {
           )}
 
           {/* Integrated Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50/80 p-2.5 rounded-[1.5rem] border border-slate-100 shadow-inner">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50/50 p-2 rounded-[1.5rem] border border-slate-100 shadow-inner">
             {stats.map((stat, i) => (
-              <div key={stat.label} className="relative p-4 rounded-2xl bg-white shadow-sm border border-slate-100/50 hover:border-slate-200 hover:shadow-md transition-all group overflow-hidden">
+              <div key={stat.label} className="relative p-3 rounded-xl bg-white shadow-sm border border-slate-100/50 hover:border-slate-200 hover:shadow-md transition-all group overflow-hidden">
                 <div className="absolute top-0 right-0 -mr-6 -mt-6 w-20 h-20 rounded-full bg-slate-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="flex items-center gap-3.5 relative z-10">
-                  <div className={`p-3 rounded-[1rem] transition-transform duration-300 group-hover:scale-[1.15] group-hover:rotate-3 shadow-sm ${stat.bg} ${stat.color}`}>
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className={`p-2.5 rounded-lg transition-transform duration-300 group-hover:scale-[1.1] shadow-sm ${stat.bg} ${stat.color}`}>
                     <stat.icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-2xl font-black text-slate-900 leading-none">{stat.value}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{stat.label}</p>
+                    <p className="text-xl font-black text-slate-900 leading-none">{stat.value}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">{stat.label}</p>
                   </div>
                 </div>
               </div>
@@ -447,16 +438,16 @@ export default function ProfilePage() {
       </motion.div>
 
       {/* ═══ ACTIVITY TABS ═══ */}
-      <div className="flex gap-2 p-1.5 bg-slate-100/80 rounded-[1.25rem] border border-slate-200/60 mb-6 overflow-x-auto scrollbar-hide shadow-inner">
+      <div className="flex gap-1.5 p-1 bg-slate-100/80 rounded-[1.25rem] border border-slate-200/60 mb-6 overflow-x-auto scrollbar-hide shadow-inner">
         {TABS.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-sm font-bold transition-all whitespace-nowrap relative z-10 ${
+            className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all whitespace-nowrap relative z-10 ${
               activeTab === tab.key
                 ? 'bg-white text-blue-600 shadow-md shadow-blue-100/50'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}>
-            <tab.icon className={`w-4 h-4 sm:w-3.5 sm:h-3.5 ${activeTab === tab.key ? 'text-blue-500' : ''}`} />
-            <span className="sm:text-sm">{tab.label.replace('My ', '')}</span>
+            <tab.icon className={`w-3.5 h-3.5 ${activeTab === tab.key ? 'text-blue-500' : ''}`} />
+            <span>{tab.label.replace('My ', '')}</span>
           </button>
         ))}
       </div>

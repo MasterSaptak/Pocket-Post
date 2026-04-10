@@ -15,6 +15,7 @@ import {
   Trash2, UserMinus
 } from 'lucide-react';
 import { TIER_CONFIG, computeAccuracyScore } from '@/lib/gamification';
+import { logAdminAction } from '@/lib/services/audit-service';
 
 interface UserMatrixProps {
   users: UserProfile[];
@@ -64,6 +65,7 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
          updates['adminOverride.expiresAt'] = null; // Locked indefinitely
       }
       await updateDoc(doc(db, 'users', userId), updates);
+      await logAdminAction(currentUser!.uid, currentUser!.email!, 'SYSTEM_CONFIG_CHANGE', `Set manual tier override: ${tier} for ${userId}`, { id: userId, type: 'user' }, { tier, lockDays });
       toast.success(`Override applied: ${tier}`);
       onRefresh();
     } catch (e) {
@@ -76,6 +78,7 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
     if (!passesGuard(userId)) return;
     try {
       await updateDoc(doc(db, 'users', userId), { adminOverride: null });
+      await logAdminAction(currentUser!.uid, currentUser!.email!, 'SYSTEM_CONFIG_CHANGE', `Reset manual tier override for ${userId}`, { id: userId, type: 'user' });
       toast.success('Reputation reset to pure System Tier');
       onRefresh();
     } catch (e) {
@@ -102,6 +105,7 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
         updates.bannedUntil = null;
       }
       await updateDoc(doc(db, 'users', userId), updates);
+      await logAdminAction(currentUser!.uid, currentUser!.email!, type === 'NONE' ? 'USER_UNBAN' : 'USER_BAN', `${type} ban issued to ${userId}`, { id: userId, type: 'user' }, { type, days });
       toast.success(type === 'NONE' ? 'Ban lifted.' : type === 'PERM' ? 'User Permanently Banned.' : `User suspended for ${days} days.`);
       onRefresh();
     } catch (e) {
@@ -115,6 +119,7 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
     if (!confirm('CRITICAL: Are you sure you want to PERMANENTLY delete this user data? This action cannot be undone.')) return;
     try {
       await deleteDoc(doc(db, 'users', userId));
+      await logAdminAction(currentUser!.uid, currentUser!.email!, 'SYSTEM_CONFIG_CHANGE', `Permanently deleted user record: ${userId}`, { id: userId, type: 'user' });
       toast.success('User record deleted from database.');
       onRefresh();
     } catch(e) { toast.error('Failed to delete user'); }
@@ -125,6 +130,7 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
     if (!passesGuard(userId, true)) return;
     try {
       await updateDoc(doc(db, 'users', userId), { role });
+      await logAdminAction(currentUser!.uid, currentUser!.email!, 'USER_PROMOTE', `Updated user role to ${role} for ${userId}`, { id: userId, type: 'user' }, { role });
       toast.success(`User clearance updated to ${role}!`);
       onRefresh();
     } catch (e) { toast.error('Failed to change role'); }
@@ -137,9 +143,38 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
         isVerifiedCarrier: false,
         'verification.status': 'rejected'
       });
+      await logAdminAction(currentUser!.uid, currentUser!.email!, 'USER_DEMOTE', `Revoked verification status for ${userId}`, { id: userId, type: 'user' });
       toast.success('Verification removed.');
       onRefresh();
     } catch (e) { toast.error('Failed to remove verification'); }
+  };
+
+  const handleTransferAuthority = async (targetId: string) => {
+    if (currentUser?.role !== 'PRIME_ADMIN') return;
+    const target = getTarget(targetId);
+    if (!target) return;
+
+    const confirmation = prompt(`CRITICAL AUTHORITY TRANSFER: You are about to transfer GLOBAL CONTROL to ${target.displayName}. \n\nType "TRANSFER MANTLE" to confirm this irreversible action:`);
+    
+    if (confirmation !== 'TRANSFER MANTLE') {
+      toast.error('Transfer aborted.');
+      return;
+    }
+
+    try {
+      // 1. Promote Target
+      await updateDoc(doc(db, 'users', targetId), { role: 'PRIME_ADMIN' });
+      // 2. Demote Self
+      await updateDoc(doc(db, 'users', currentUser.uid), { role: 'admin' });
+      
+      await logAdminAction(currentUser.uid, currentUser.email!, 'SYSTEM_CONFIG_CHANGE', `TRANSFERRED PRIME AUTHORITY to ${targetId} (${target.email})`, { id: targetId, type: 'user' });
+      
+      toast.success('Mantle Transferred. You are now a System Admin.');
+      onRefresh();
+      window.location.reload(); // Force session refresh
+    } catch (e) {
+      toast.error('Critical Failure: Authority transfer interrupted.');
+    }
   };
 
   return (
@@ -160,12 +195,12 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-[2px] text-slate-400 bg-slate-50/20">
-                <th className="px-8 py-5">Operative Identity</th>
-                <th className="px-6 py-5">System Tier / Accuracy</th>
-                <th className="px-6 py-5">Active Final Tier</th>
-                <th className="px-6 py-5 whitespace-nowrap">Risk / Bans</th>
-                <th className="px-8 py-5 text-right w-[100px]">Actions</th>
+              <tr className="border-b border-slate-100 text-[9px] font-black uppercase tracking-[2px] text-slate-400 bg-slate-50/20">
+                <th className="px-6 py-4">Operative Identity</th>
+                <th className="px-6 py-4">System Tier / Accuracy</th>
+                <th className="px-6 py-4">Active Final Tier</th>
+                <th className="px-6 py-4 whitespace-nowrap">Risk / Bans</th>
+                <th className="px-6 py-4 text-right w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -191,20 +226,20 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
                             : 'cursor-pointer hover:bg-slate-50/50'
                         } ${isExpanded ? 'bg-slate-50/80 shadow-inner' : ''}`}>
                       {/* Identity */}
-                      <td className="px-8 py-5 align-middle">
-                        <div className="flex items-center gap-4">
+                      <td className="px-6 py-4 align-middle">
+                        <div className="flex items-center gap-3">
                           {u.photoURL ? (
-                            <img src={u.photoURL} alt="" className="w-12 h-12 rounded-2xl object-cover ring-2 ring-white shadow-md shadow-slate-200 shrink-0" />
+                            <img src={u.photoURL} alt="" className="w-10 h-10 rounded-xl object-cover ring-2 ring-white shadow-md shadow-slate-200 shrink-0" />
                           ) : (
-                            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-black shadow-inner shrink-0 text-lg">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 font-black shadow-inner shrink-0 text-sm">
                               {u.displayName[0]}
                             </div>
                           )}
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="font-bold text-slate-900 leading-tight truncate">{u.displayName}</p>
+                              <p className="font-bold text-slate-900 text-sm leading-tight truncate">{u.displayName}</p>
                               {u.role === 'PRIME_ADMIN' && (
-                                <div className="bg-gradient-to-r from-amber-200 to-amber-500 px-2 py-0.5 rounded-md text-[9px] font-black text-amber-950 border border-amber-300 shadow-sm flex items-center gap-1">👑 PRIME</div>
+                                <div className="bg-gradient-to-r from-amber-200 to-amber-500 px-1.5 py-0.5 rounded-md text-[8px] font-black text-amber-950 border border-amber-300 shadow-sm flex items-center gap-1 uppercase tracking-tighter">👑 PRIME</div>
                               )}
                               {u.role === 'admin' && <Shield className="w-3.5 h-3.5 text-red-500" />}
                               {u.role === 'moderator' && <ShieldCheck className="w-3.5 h-3.5 text-blue-500" />}
@@ -266,14 +301,14 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
                       </td>
 
                       {/* Chevron Action */}
-                      <td className="px-8 py-5 align-middle text-right">
+                      <td className="px-6 py-4 align-middle text-right">
                         {u.role !== 'PRIME_ADMIN' ? (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 pointer-events-none">
-                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm" asChild className="h-8 text-[10px] text-slate-500 border-slate-200 pointer-events-auto">
-                            <a href={`/user/${u.uid}`}>View Profile</a>
+                          <Button variant="outline" size="sm" asChild className="h-7 text-[9px] font-black text-slate-500 border-slate-200 uppercase tracking-widest px-3">
+                            <a href={`/user/${u.uid}`}>Intel</a>
                           </Button>
                         )}
                       </td>
@@ -395,10 +430,14 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
                                             <UserMinus className="w-3 h-3 mr-1.5" /> Revoke Verification
                                           </Button>
                                         )}
-                                        <div className="pt-2 border-t border-slate-100 mt-1">
                                           <Button size="sm" onClick={() => handleDeleteUser(u.uid)} variant="ghost" className="w-full text-slate-500 hover:text-red-600 hover:bg-red-50 text-[10px] font-bold h-8 justify-start">
                                             <Trash2 className="w-3 h-3 mr-1.5" /> Force Delete Record
                                           </Button>
+                                          {currentUser?.role === 'PRIME_ADMIN' && u.role !== 'PRIME_ADMIN' && (
+                                            <Button size="sm" onClick={() => handleTransferAuthority(u.uid)} variant="ghost" className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 text-[10px] font-black h-8 justify-start border-t border-slate-100 rounded-none mt-1">
+                                              <Shield className="w-3 h-3 mr-1.5" /> Transfer Prime Authority
+                                            </Button>
+                                          )}
                                         </div>
                                      </div>
                                   </div>

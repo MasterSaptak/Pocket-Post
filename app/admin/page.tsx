@@ -21,6 +21,7 @@ import {
   Ban, ShieldAlert, ShieldCheck, UserMinus, UserPlus, 
   TrendingUp, Activity, MessageSquare, Plus, AlertCircle, ChevronRight
 } from 'lucide-react';
+import { logAdminAction } from '@/lib/services/audit-service';
 
 type TabKey = 'verification' | 'tasks' | 'applications' | 'users';
 type TaskSubTab = 'pending' | 'active' | 'pinned' | 'emergency' | 'all';
@@ -82,6 +83,7 @@ export default function AdminDashboard() {
         'verification.status': 'approved',
         'verification.reviewedAt': new Date(),
       });
+      await logAdminAction(user!.uid, user!.email!, 'USER_PROMOTE', `Approved carrier verification for ${userId}`, { id: userId, type: 'user' });
       toast.success('Carrier verified successfully!');
     } catch (error) {
       toast.error('Failed to approve verification.');
@@ -95,6 +97,7 @@ export default function AdminDashboard() {
         'verification.status': 'rejected',
         'verification.reviewedAt': new Date(),
       });
+      await logAdminAction(user!.uid, user!.email!, 'USER_DEMOTE', `Rejected carrier verification for ${userId}`, { id: userId, type: 'user' });
       toast.success('Verification rejected.');
     } catch (error) {
       toast.error('Failed to reject verification.');
@@ -168,6 +171,7 @@ export default function AdminDashboard() {
     if (!confirm('Are you sure you want to PERMANENTLY delete this task?')) return;
     try {
       await deleteDoc(doc(db, 'tasks', taskId));
+      await logAdminAction(user!.uid, user!.email!, 'TASK_DELETE', `Hard deleted task: ${taskId}`, { id: taskId, type: 'task' });
       toast.success('Task deleted successfully.');
     } catch (error) {
       toast.error('Failed to delete task.');
@@ -277,35 +281,35 @@ export default function AdminDashboard() {
   const filteredTasks = getSubTabTasks();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 pt-24 pb-24 lg:pt-32 lg:pb-12">
+    <div className="max-w-5xl mx-auto px-4 pt-20 pb-24 lg:pt-28 lg:pb-12">
       {/* 🟢 HEADER & GLOBAL ACTIONS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
         <div>
-          <h1 className="text-4xl font-heading font-black text-slate-900 flex items-center gap-3 tracking-tight">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-              <Shield className="w-6 h-6" />
+          <h1 className="text-3xl font-heading font-black text-slate-900 flex items-center gap-3 tracking-tight">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
+              <Shield className="w-5 h-5" />
             </div>
             {isAdmin ? 'Command Center' : 'Moderator Panel'}
           </h1>
-          <p className="text-slate-500 mt-1 font-medium italic">Operational status: <span className="text-emerald-500">Live & Synchronized</span></p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mt-1.5">Operational Status: <span className="text-emerald-500">Synchronized</span></p>
         </div>
         
         <div className="flex gap-2">
           <Button 
             onClick={() => setShowCreateModal(true)}
             variant="signature" 
-            className="rounded-xl px-6 h-12 shadow-xl shadow-blue-100 hover:scale-105 transition-transform"
+            className="rounded-xl px-5 h-10 shadow-lg shadow-blue-100 text-xs font-black uppercase tracking-widest"
           >
-            <Plus className="w-5 h-5 mr-2" /> Admin Post
+            <Plus className="w-4 h-4 mr-1.5" /> Admin Post
           </Button>
-          <Button variant="outline" className="rounded-xl h-12 px-4">
-            <Activity className="w-5 h-5" />
+          <Button variant="outline" className="rounded-xl h-10 px-3.5">
+            <Activity className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
       {/* 🟠 ANALYTICS SNAPSHOT */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Total Base', value: allUsers.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+12%' },
           { label: 'Active Ops', value: openTasks.length, icon: Package, color: 'text-amber-600', bg: 'bg-amber-50', trend: 'Live' },
@@ -315,38 +319,38 @@ export default function AdminDashboard() {
           <motion.div 
             whileHover={{ y: -4 }}
             key={stat.label} 
-            className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between"
+            className="bg-white rounded-[1.5rem] p-4 border border-slate-100 shadow-sm flex flex-col justify-between"
           >
             <div className="flex justify-between items-start">
-              <div className={`p-2.5 rounded-2xl ${stat.bg} ${stat.color}`}>
-                <stat.icon className="w-5 h-5" />
+              <div className={`p-2 rounded-xl ${stat.bg} ${stat.color}`}>
+                <stat.icon className="w-4 h-4" />
               </div>
-              <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full uppercase tracking-widest">{stat.trend}</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">{stat.trend}</span>
             </div>
             <div className="mt-4">
-              <p className="text-3xl font-black text-slate-900 tracking-tighter">{stat.value}</p>
-              <p className="text-sm font-semibold text-slate-400">{stat.label}</p>
+              <p className="text-2xl font-black text-slate-900 tracking-tighter leading-none">{stat.value}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5">{stat.label}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
       {/* 🔵 PRIMARY NAVIGATION (COMMANDS) */}
-      <div className="flex flex-wrap gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50">
+      <div className="flex flex-wrap gap-1.5 mb-6 bg-slate-100/80 p-1 rounded-2xl border border-slate-200/40 shadow-inner">
         {visibleTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-[14px] text-sm font-bold transition-all duration-300 ${
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${
               currentTab === tab.key
-                ? 'bg-white text-blue-600 shadow-lg shadow-blue-100'
+                ? 'bg-white text-blue-600 shadow-md shadow-blue-100/50'
                 : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
-            <tab.icon className={`w-4 h-4 ${currentTab === tab.key ? 'animate-pulse' : ''}`} />
+            <tab.icon className={`w-3.5 h-3.5 ${currentTab === tab.key ? 'animate-pulse' : ''}`} />
             <span className="hidden sm:inline">{tab.label}</span>
             {tab.count > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
                 currentTab === tab.key ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
               }`}>
                 {tab.count}

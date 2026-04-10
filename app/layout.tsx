@@ -97,7 +97,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <AppProviders>
-          <main className="relative z-0 min-h-[100dvh]">
+          <main className="min-h-[100dvh]">
             {children}
           </main>
           <InstallPWA />
