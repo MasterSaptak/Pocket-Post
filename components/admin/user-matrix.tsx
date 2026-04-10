@@ -441,7 +441,6 @@ export function UserMatrix({ users, isAdmin, currentUser, onRefresh }: UserMatri
                                         </div>
                                      </div>
                                   </div>
-                                </div>
 
                               </div>
                             </motion.div>

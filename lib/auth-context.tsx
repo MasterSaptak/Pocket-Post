@@ -64,6 +64,12 @@ export interface UserProfile {
   // Cached State Values (Calculated by Cloud Functions, safe to rely on for UI)
   systemTier?: string;
   finalTier?: string;
+  
+  // Aggregate stats
+  activeBidsCount?: number;
+  completedTasksCount?: number;
+  followingCount?: number;
+  savedCount?: number;
 }
 
 interface AuthContextType {

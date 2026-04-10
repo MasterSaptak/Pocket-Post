@@ -1,6 +1,6 @@
 {
-  "version": "1.1.3",
-  "buildTimestamp": "2026-04-09T03:10:00.261Z",
+  "version": "1.1.5",
+  "buildTimestamp": "2026-04-10T10:24:20.494Z",
   "minVersion": "1.1.0",
   "forceUpdate": true,
   "changelog": "Critical fix: deterministic service worker updates for mobile. Eliminates stale cache issues."
